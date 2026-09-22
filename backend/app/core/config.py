@@ -1,3 +1,4 @@
+import json
 from typing import Literal
 
 from pydantic import field_validator
@@ -18,6 +19,21 @@ class Settings(BaseSettings):
         "http://localhost:5174",
         "http://localhost:5175",
     ]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value: object) -> object:
+        """Accept a JSON array (pydantic-settings' default for list-typed
+        env vars) or a plain comma-separated string. Dashboard env var
+        editors (Render, etc.) are plain text fields, and it's easy to
+        paste a value that isn't valid JSON — a comma-separated string
+        is far harder to get wrong.
+        """
+        if not isinstance(value, str):
+            return value
+        if value.strip().startswith("["):
+            return json.loads(value)
+        return [origin.strip() for origin in value.split(",") if origin.strip()]
 
     @field_validator("database_url")
     @classmethod

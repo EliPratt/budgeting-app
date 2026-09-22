@@ -342,3 +342,35 @@ this repo to explain why.
 with `cp314` wheels — rejected for now since it's an unrelated dependency
 bump with its own risk, when the simpler fix (pin the interpreter) fully
 resolves the immediate failure without touching tested application code.
+
+## CORS_ORIGINS accepts a plain string, not just strict JSON
+
+**Decision:** `Settings.cors_origins` (a `list[str]`) has a `mode="before"`
+validator that accepts a JSON array, a comma-separated string, or a
+single bare origin — not only the strict JSON array pydantic-settings
+expects by default for list-typed env vars.
+
+**Why:** Render's environment variable editor is a plain text field.
+Pasting a bare URL like `https://budgeting-app-sepia.vercel.app` into it
+— the obviously "correct-looking" thing to type — crashed the app at
+startup with an opaque `pydantic_core.ValidationError`, because
+pydantic-settings requires exact JSON (`["https://..."]`) for list
+fields sourced from env vars. That's the same class of problem
+`DATABASE_URL` normalization already solves for provider-supplied
+connection strings: a config value's *natural* shape in a dashboard UI
+doesn't match what the library strictly requires, and the gap should be
+closed in code, not by requiring the user to remember exact JSON
+quoting.
+
+**Trade-off:** Slightly more permissive parsing than pydantic-settings'
+default — a genuinely malformed value (e.g. unbalanced brackets) now
+fails at JSON-decode time inside the validator rather than via
+pydantic's own error message. Covered by `test_config.py` for all three
+accepted shapes (JSON array, comma-separated, single bare origin) plus
+whitespace trimming.
+
+**Alternatives considered:** Documenting the exact JSON-quoting
+requirement in the README and leaving parsing strict — rejected because
+it's a foot-gun that fails loudly in production the first time someone
+(including future-me) forgets the brackets/quotes, for no benefit over
+handling the obvious input shapes directly.
