@@ -1,14 +1,22 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as api from './lib/api'
 import App from './App'
 
 describe('App', () => {
-  it('renders the app title', () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ status: 'ok' }) }),
-    )
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('shows the login form when there is no active session', async () => {
+    vi.spyOn(api, 'getMe').mockResolvedValue(null)
     render(<App />)
-    expect(screen.getByText('Budgeting App')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /log in/i })).toBeInTheDocument()
+  })
+
+  it('shows the signed-in view when a session already exists', async () => {
+    vi.spyOn(api, 'getMe').mockResolvedValue({ email: 'owner@example.com' })
+    render(<App />)
+    expect(await screen.findByText('Signed in as owner@example.com')).toBeInTheDocument()
   })
 })

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7
+    cookie_secure: bool = False
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://localhost:5174",

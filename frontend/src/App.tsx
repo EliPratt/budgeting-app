@@ -1,37 +1,46 @@
-import { useEffect, useState } from 'react'
-import { getHealth } from './lib/api'
+import { AuthProvider, useAuth } from './features/auth/AuthContext'
+import { LoginForm } from './features/auth/LoginForm'
 
-type ApiStatus = 'checking' | 'online' | 'offline'
+function AppShell() {
+  const { user, loading, login, logout } = useAuth()
 
-function App() {
-  const [apiStatus, setApiStatus] = useState<ApiStatus>('checking')
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-slate-400">Loading…</p>
+      </div>
+    )
+  }
 
-  useEffect(() => {
-    getHealth()
-      .then(() => setApiStatus('online'))
-      .catch(() => setApiStatus('offline'))
-  }, [])
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+        <LoginForm onSubmit={login} />
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="rounded-xl bg-white shadow-sm border border-slate-200 p-8 text-center">
-        <h1 className="text-2xl font-semibold text-slate-900">Budgeting App</h1>
-        <p className="mt-2 text-slate-500">
-          API status:{' '}
-          <span
-            className={
-              apiStatus === 'online'
-                ? 'text-emerald-600 font-medium'
-                : apiStatus === 'offline'
-                  ? 'text-red-600 font-medium'
-                  : 'text-slate-400'
-            }
-          >
-            {apiStatus}
-          </span>
-        </p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-sm space-y-4 rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-xl font-semibold text-slate-900">Budgeting App</h1>
+        <p className="text-slate-500">Signed in as {user.email}</p>
+        <button
+          onClick={() => logout()}
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Log out
+        </button>
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   )
 }
 
