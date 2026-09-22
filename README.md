@@ -5,13 +5,58 @@ income to a category, track spending against it, import transactions
 from bank CSV/OFX exports, auto-categorize them with rules, and manage
 recurring bills and savings goals.
 
-## Stack
+## Features
 
-- **Backend:** FastAPI, SQLAlchemy, Alembic, PostgreSQL
-- **Frontend:** React, TypeScript, Vite, Tailwind CSS, Recharts
-- **Auth:** single-user login (JWT in an httpOnly cookie)
-- **Hosting:** Render (API + Postgres), Vercel (frontend)
-- **CI:** GitHub Actions (pytest, Vitest, lint, type-check)
+- **Envelope budgeting** — assign income to categories each month, with
+  rollover and a "every dollar has a job" balanced-budget check.
+- **Manual entry and bank import** — add transactions by hand, or import
+  a CSV/OFX export with automatic dedupe against what's already there.
+- **Rule-based auto-categorization** — CSV/OFX imports are matched
+  against user-defined rules (substring or regex), with an inline review
+  step for anything left uncategorized.
+- **Recurring bills** — track bills as templates; anything overdue is
+  surfaced for one-click confirmation as a real transaction.
+- **Savings goals** — a target amount and date on top of an envelope's
+  own balance, with a suggested monthly contribution.
+- **Reports** — spending by category, income vs. expense, and net worth,
+  charted with Recharts.
+
+## Architecture
+
+```
+┌─────────────┐        HTTPS + cookie auth        ┌──────────────────┐
+│   Frontend   │ ───────────────────────────────▶ │    Backend API    │
+│ React + Vite │ ◀─────────────────────────────── │      FastAPI       │
+│  (Vercel)    │                                   │     (Render)       │
+└─────────────┘                                    └─────────┬────────┘
+                                                               │
+                                                     SQLAlchemy + Alembic
+                                                               │
+                                                               ▼
+                                                     ┌──────────────────┐
+                                                     │    PostgreSQL     │
+                                                     │     (Render)       │
+                                                     └──────────────────┘
+```
+
+- **Backend:** FastAPI + SQLAlchemy 2.0 + Alembic migrations + Postgres.
+  Single-user auth (one owner account, no multi-tenancy) via a JWT stored
+  in an httpOnly cookie.
+- **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS v4. Each
+  domain area (accounts, envelopes, transactions, imports, recurring
+  bills, goals, reports) is a self-contained feature module with its own
+  API client, component, and tests.
+- **Hosting:** Render (API service + managed Postgres), Vercel
+  (static frontend build). Chosen for a common, easy-to-explain
+  deploy pattern with workable free tiers.
+- **CI:** GitHub Actions runs the backend test suite (pytest, ruff,
+  mypy) and the frontend suite (Vitest, lint, typecheck, build) on every
+  push.
+
+See [DECISIONS.md](DECISIONS.md) for the non-obvious design choices
+behind the envelope math, the import dedupe hash, the goal/envelope
+relationship, and a few things that would be done differently at a much
+larger scale.
 
 ## Local development
 
@@ -22,8 +67,16 @@ cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 docker compose -f ../docker-compose.yml up -d   # local Postgres on :5433
+cp .env.example .env                            # adjust if needed
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
+```
+
+Create the single owner login:
+
+```bash
+OWNER_EMAIL=you@example.com OWNER_PASSWORD=choose-a-password \
+  python -m scripts.seed_owner
 ```
 
 ### Frontend
@@ -31,15 +84,84 @@ uvicorn app.main:app --reload --port 8000
 ```bash
 cd frontend
 npm install
+cp .env.example .env   # only needed if the API isn't at localhost:8000
 npm run dev
 ```
-
-Copy `frontend/.env.example` to `frontend/.env` if the API isn't at the
-default `http://localhost:8000`.
 
 ## Tests
 
 ```bash
-cd backend && pytest
-cd frontend && npm test
+cd backend && pytest        # + ruff check . && mypy app
+cd frontend && npm test     # + npm run lint && npm run typecheck && npm run build
 ```
+
+## Deployment
+
+The app deploys as two independent services: the API + database on
+Render, and the static frontend build on Vercel. They're deployed
+separately because the frontend needs to know the API's live URL before
+its build can be configured, and vice versa for CORS — see the order
+below.
+
+### 1. Backend — Render
+
+This repo includes a [`render.yaml`](render.yaml) Blueprint, so from the
+Render dashboard: **New → Blueprint**, point it at this repo, and Render
+provisions both the web service and the Postgres database from that
+file.
+
+`render.yaml` already wires up:
+- `DATABASE_URL` from the provisioned Postgres instance (Render hands out
+  a bare `postgres://` URL; `app/core/config.py` normalizes it to the
+  `+psycopg` dialect SQLAlchemy needs, so no manual edit is required).
+- `COOKIE_SECURE=true` and `COOKIE_SAMESITE=none`, required because the
+  frontend and API are on different top-level domains (Vercel vs.
+  Render) — a cross-site cookie needs `SameSite=None; Secure`, unlike
+  local dev where both sides are on `localhost` and `SameSite=Lax` is
+  enough.
+- `JWT_SECRET` auto-generated by Render.
+- The build command runs `alembic upgrade head` on every deploy, so
+  schema migrations ship automatically.
+
+Two things still need setting manually in the Render dashboard, since
+`render.yaml` intentionally leaves them as `sync: false` rather than
+hardcoding placeholder values into version control:
+- `CORS_ORIGINS` — a JSON array of allowed frontend origins, e.g.
+  `["https://your-app.vercel.app"]`. You'll only know this URL after
+  step 2, so come back and set it once Vercel gives you one.
+- `OWNER_EMAIL` / `OWNER_PASSWORD` — used once, manually, in the next
+  step. They don't need to be set as real env vars on the service itself
+  unless you want `scripts.seed_owner` runnable via a saved shell
+  session; setting them ad hoc when you run the command works just as
+  well.
+
+Once deployed, open a shell for the service in the Render dashboard and
+create the owner login:
+
+```bash
+OWNER_EMAIL=you@example.com OWNER_PASSWORD=choose-a-strong-password \
+  python -m scripts.seed_owner
+```
+
+### 2. Frontend — Vercel
+
+Import this repo into Vercel as a new project:
+- **Root Directory:** `frontend`
+- **Framework Preset:** Vite (auto-detected via `frontend/vercel.json`)
+- **Environment Variable:** `VITE_API_URL` = your Render service's URL
+  (e.g. `https://budgeting-api.onrender.com`)
+
+Deploy, then copy the resulting `https://….vercel.app` URL back into the
+Render service's `CORS_ORIGINS` env var (as a JSON array) and let Render
+redeploy. Until that's set, the API will reject the frontend's requests
+with a CORS error — this is the one manual round trip between the two
+services.
+
+### Verifying a deploy
+
+1. Open the Vercel URL and confirm the login screen loads.
+2. Log in with the owner credentials from `scripts.seed_owner`.
+3. Create an account and an envelope, add a transaction, and confirm the
+   envelope view updates.
+4. Try a CSV import and a recurring bill confirmation, to exercise a
+   round trip through the API and back.

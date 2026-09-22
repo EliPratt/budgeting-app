@@ -252,3 +252,65 @@ requires tests to account for the async gap.
 Vite's warning threshold — rejected as papering over a real, easy-to-fix
 cost rather than addressing it; the fix here is one `lazy()` call, not a
 structural change.
+
+## Cross-site cookie auth needs `SameSite=None` in production, `Lax` locally — made configurable, not hardcoded
+
+**Decision:** `cookie_samesite` is a setting (`app/core/config.py`),
+defaulting to `"lax"`, read into `Response.set_cookie()` in
+`app/api/routes/auth.py` instead of a hardcoded `"lax"` string. Render
+deploys it as `"none"` (paired with `COOKIE_SECURE=true`); local dev
+keeps the default.
+
+**Why:** SameSite is evaluated by *site* (registrable domain), not by
+origin (scheme+host+port). `localhost:5173` and `localhost:8000` are
+different origins but the same site, so `Lax` already works for local
+dev — which is exactly why this was easy to not notice until deploying
+for real. In production, the Vercel frontend and Render API are on
+completely different domains, which is genuinely cross-site: `Lax`
+cookies are withheld from cross-site `fetch`/XHR requests (they're only
+sent on top-level navigations), so the login cookie would silently never
+reach the API again after the first response set it. Browsers also
+require `Secure` on any cookie using `SameSite=None`, which is why
+`COOKIE_SECURE` and `COOKIE_SAMESITE` are set together in `render.yaml`.
+
+**Trade-off:** `SameSite=None` cookies are more exposed to CSRF than
+`Lax` in principle, since they're sent on cross-site requests generically
+— mitigated here by `CORS_ORIGINS` being an explicit allow-list (never
+`*`, which FastAPI's CORS middleware refuses to pair with
+`allow_credentials=True` anyway) rather than a wildcard.
+
+**Alternatives considered:** Putting the frontend and API behind the same
+domain (e.g., API at `api.example.com`, frontend at `example.com`) so
+`Lax` would keep working — rejected for this project because it requires
+owning and configuring a custom domain across two hosting providers,
+which is more infrastructure than a personal/portfolio deployment needs;
+revisit if a custom domain gets added later anyway.
+
+## DATABASE_URL scheme normalized in code, not left to manual configuration
+
+**Decision:** `Settings` normalizes a bare `postgres://` or
+`postgresql://` URL to `postgresql+psycopg://` via a Pydantic field
+validator, rather than documenting "remember to add `+psycopg`" as a
+manual deployment step.
+
+**Why:** Render (like most managed Postgres providers) hands out a
+connection string with a bare `postgres://` or `postgresql://` scheme.
+SQLAlchemy needs the `+psycopg` dialect suffix to select the psycopg3
+driver this project uses. A manual-edit instruction is the kind of step
+that's easy to follow once in the README and easy to forget on the next
+redeploy, database rotation, or when a teammate reads the setup docs
+without reading closely — normalizing it in code means the raw
+provider-supplied URL can be pasted into `DATABASE_URL` verbatim and it
+just works, every time.
+
+**Trade-off:** One additional layer of "magic" between what's configured
+and what SQLAlchemy actually uses — someone debugging a connection issue
+has to know this normalization exists rather than seeing the real dialect
+string directly in the environment variable. Mitigated by the validator's
+docstring and by `test_config.py` pinning the exact input/output
+behavior.
+
+**Alternatives considered:** Leaving it manual and documenting it in the
+README — rejected as a foot-gun for a step with no benefit to doing it
+by hand; there's no case where a user would want the un-normalized
+scheme to reach SQLAlchemy.
