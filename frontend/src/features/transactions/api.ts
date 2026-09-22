@@ -43,3 +43,17 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     },
   })
 }
+
+export interface UpdateTransactionInput {
+  envelopeId: number
+}
+
+export async function updateTransaction(
+  transactionId: number,
+  input: UpdateTransactionInput,
+): Promise<Transaction> {
+  return apiFetch(`/api/transactions/${transactionId}`, {
+    method: 'PATCH',
+    body: { envelope_id: input.envelopeId },
+  })
+}

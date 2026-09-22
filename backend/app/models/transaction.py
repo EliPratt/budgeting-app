@@ -17,4 +17,8 @@ class Transaction(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     payee: Mapped[str] = mapped_column(String(255))
     source: Mapped[str] = mapped_column(String(20), default="manual")
+    import_batch_id: Mapped[int | None] = mapped_column(
+        ForeignKey("import_batches.id"), nullable=True
+    )
+    dedupe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

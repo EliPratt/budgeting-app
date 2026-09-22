@@ -1,6 +1,7 @@
 import { AccountsPanel } from '../accounts/AccountsPanel'
 import type { User } from '../../lib/api'
 import { EnvelopesPanel } from '../envelopes/EnvelopesPanel'
+import { ImportPanel } from '../imports/ImportPanel'
 import { MonthOverviewPanel } from '../months/MonthOverviewPanel'
 import { TransactionsPanel } from '../transactions/TransactionsPanel'
 
@@ -29,6 +30,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         <MonthOverviewPanel />
         <AccountsPanel />
         <EnvelopesPanel />
+        <ImportPanel />
         <TransactionsPanel />
       </main>
     </div>

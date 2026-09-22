@@ -16,11 +16,13 @@ async function parseErrorDetail(response: Response): Promise<string> {
 }
 
 export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+  const isFormData = options.body instanceof FormData
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? 'GET',
     credentials: 'include',
-    headers: options.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    headers:
+      options.body !== undefined && !isFormData ? { 'Content-Type': 'application/json' } : undefined,
+    body: options.body === undefined || isFormData ? (options.body as FormData) : JSON.stringify(options.body),
   })
 
   if (!response.ok) {

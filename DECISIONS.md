@@ -69,3 +69,60 @@ the `get_db` override configurable, or accept SQLite-only tests but treat
 a phase done" as load-bearing rather than a nice-to-have — which is the
 practice this project is already following per its build-order
 verification steps, and which is exactly what caught this bug.
+
+## Dedupe hash computed on every transaction, not just imported ones
+
+**Decision:** `Transaction.dedupe_hash` — `sha256(account_id | date |
+amount | normalized payee)` — is set at creation time for manual entries
+too, not only for rows created by an import. Re-importing a file checks
+this hash against *all* existing transactions for the account.
+
+**Why:** The realistic failure mode isn't just "imported the same file
+twice" — it's "manually entered a transaction on Monday, then imported
+last month's bank export on Friday, and that export includes the same
+transaction." Hashing only import-created rows would silently create a
+duplicate in exactly that case. Computing the hash universally makes
+dedupe checking a single lookup regardless of how the existing row got
+there.
+
+**Trade-off:** The hash is a heuristic, not a guarantee — two genuinely
+different transactions on the same day, for the same amount, at the same
+payee (e.g., two separate $12 coffee purchases at the same shop) collide
+and the second is dropped as a "duplicate." For a personal finance tool
+this is an acceptable false-negative rate; a system that had to get this
+exactly right (e.g., reconciling real bank statement line items) would
+need a stronger identity, such as the bank's own transaction ID from OFX
+`FITID` where available.
+
+**Alternatives considered:** (1) Only dedupe within a given import batch,
+never against pre-existing manual rows — rejected as strictly weaker for
+no simplicity benefit, since the hash lookup is the same either way. (2)
+Use OFX `FITID` when present and fall back to the content hash otherwise
+— worth doing if this app ever needs to import the same OFX file from
+multiple overlapping date ranges, but out of scope for v1's CSV-first
+usage pattern.
+
+## Category rule matching is an in-process linear scan, not pushed into SQL
+
+**Decision:** `match_envelope()` loads all `CategoryRule` rows (ordered by
+priority) and evaluates each one against the payee in Python — `in`
+substring check or `re.search` — rather than expressing the match as a
+SQL `WHERE` clause.
+
+**Why:** Regex matching isn't portable across SQL dialects in a form
+worth maintaining (Postgres and SQLite disagree on regex syntax and
+functions), and this project's test suite runs against SQLite while
+production runs Postgres — a SQL-side implementation would need two code
+paths just to keep dev/test parity. A handful of rules evaluated in
+Python per imported row is negligible cost at personal-budgeting scale.
+
+**Trade-off:** At 10x scale (thousands of rules, imports of tens of
+thousands of rows), this becomes an O(rules × rows) hot loop done outside
+the database. The rules table would need to move server-side (e.g., a
+generated/indexed column for simple substrings, falling back to Python
+only for regex) well before that became painful, but the personal-app
+volume here is nowhere near it.
+
+**Alternatives considered:** Postgres regex operators (`~*`) — rejected
+for the SQLite/Postgres parity reason above; a rules DSL compiled to SQL
+— rejected as premature engineering for two match types.
