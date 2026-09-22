@@ -126,3 +126,37 @@ volume here is nowhere near it.
 **Alternatives considered:** Postgres regex operators (`~*`) — rejected
 for the SQLite/Postgres parity reason above; a rules DSL compiled to SQL
 — rejected as premature engineering for two match types.
+
+## Confirming a recurring bill records the transaction on its due date, and can skip past several missed cycles in one step
+
+**Decision:** `confirm_bill()` creates the transaction dated at the bill's
+current `next_due_date` (not "today"), then advances `next_due_date` in a
+loop — `while next_due_date <= as_of: next_due_date = advance(...)` —
+rather than a single fixed-size step.
+
+**Why:** A bill is owed on its due date regardless of when the user gets
+around to confirming it; backdating the transaction keeps the envelope
+math and account balance correct for the month the expense actually
+belongs to. The loop (instead of one `+= frequency` step) exists because
+a personal budgeting app absolutely will have a bill nobody confirmed for
+months — going on vacation, forgetting to open the app — and the "due
+now" list should not pile up N stale rows for one forgotten bill. Live
+verification confirmed this: a bill due 2026-01-01 (monthly), confirmed
+in September, landed one transaction dated 2026-01-01 and jumped straight
+to `next_due_date = 2026-10-01` in a single confirm.
+
+**Trade-off:** Only one transaction is ever created per confirm, even if
+several cycles were missed — this assumes a missed bill means "I forgot
+to log it," not "I owe five months of rent." For a bill genuinely owed
+every missed cycle (rent, not a subscription that lapses), the user would
+need to confirm it once per missed month manually; the UI doesn't offer a
+"catch up N cycles" bulk action.
+
+**Alternatives considered:** Auto-creating a transaction for every missed
+cycle — rejected per the project's own error-handling principle (surface
+for confirmation, never silently auto-create with a guessed amount/date);
+this failure mode is worse than a manual catch-up. Advancing only one
+cycle per confirm click — rejected because it would take five separate
+clicks to clear a five-months-overdue bill, and the flag in the "due now"
+list would misleadingly persist after the user has already caught up on
+the current cycle.

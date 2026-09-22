@@ -9,6 +9,7 @@ from app.api.routes import (
     health,
     imports,
     months,
+    recurring_bills,
     transactions,
 )
 from app.core.config import settings
@@ -32,4 +33,7 @@ app.include_router(months.router, prefix="/api/months", tags=["months"])
 app.include_router(imports.router, prefix="/api/imports", tags=["imports"])
 app.include_router(
     category_rules.router, prefix="/api/category-rules", tags=["category-rules"]
+)
+app.include_router(
+    recurring_bills.router, prefix="/api/recurring-bills", tags=["recurring-bills"]
 )

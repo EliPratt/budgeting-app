@@ -7,7 +7,7 @@ export interface Transaction {
   date: string
   amount: string
   payee: string
-  source: 'manual' | 'import'
+  source: 'manual' | 'import' | 'recurring'
 }
 
 export interface CreateTransactionInput {

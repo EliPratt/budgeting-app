@@ -4,6 +4,7 @@ import * as api from './lib/api'
 import * as accountsApi from './features/accounts/api'
 import * as envelopesApi from './features/envelopes/api'
 import * as monthsApi from './features/months/api'
+import * as billsApi from './features/recurring-bills/api'
 import * as transactionsApi from './features/transactions/api'
 import App from './App'
 
@@ -23,6 +24,8 @@ describe('App', () => {
     vi.spyOn(accountsApi, 'listAccounts').mockResolvedValue([])
     vi.spyOn(envelopesApi, 'listEnvelopes').mockResolvedValue([])
     vi.spyOn(transactionsApi, 'listTransactions').mockResolvedValue([])
+    vi.spyOn(billsApi, 'listRecurringBills').mockResolvedValue([])
+    vi.spyOn(billsApi, 'listDueBills').mockResolvedValue([])
     vi.spyOn(monthsApi, 'getMonthOverview').mockResolvedValue({
       year: 2026,
       month: 1,
@@ -41,6 +44,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Budget' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Accounts' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Envelopes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Recurring bills' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Transactions' })).toBeInTheDocument()
   })
 })

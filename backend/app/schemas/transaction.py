@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 class TransactionSource(str, Enum):
     manual = "manual"
     import_ = "import"
+    recurring = "recurring"
 
 
 class TransactionCreate(BaseModel):
