@@ -1,6 +1,7 @@
 import { AccountsPanel } from '../accounts/AccountsPanel'
 import type { User } from '../../lib/api'
 import { EnvelopesPanel } from '../envelopes/EnvelopesPanel'
+import { MonthOverviewPanel } from '../months/MonthOverviewPanel'
 import { TransactionsPanel } from '../transactions/TransactionsPanel'
 
 interface DashboardProps {
@@ -25,6 +26,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
       </header>
 
       <main className="mx-auto max-w-3xl space-y-6 p-6">
+        <MonthOverviewPanel />
         <AccountsPanel />
         <EnvelopesPanel />
         <TransactionsPanel />
