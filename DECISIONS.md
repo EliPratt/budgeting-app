@@ -314,3 +314,31 @@ behavior.
 README — rejected as a foot-gun for a step with no benefit to doing it
 by hand; there's no case where a user would want the un-normalized
 scheme to reach SQLAlchemy.
+
+## Python version pinned explicitly for Render
+
+**Decision:** `render.yaml` sets `PYTHON_VERSION=3.12.7` on the web
+service instead of letting Render pick its own default.
+
+**Why:** The first Render deploy failed because Render's default
+runtime had already moved to Python 3.14, and `pydantic-core==2.23.4`
+(pinned in `requirements.txt`) has no prebuilt wheel for `cp314` yet.
+Pip fell back to compiling it from source via `maturin`/Rust, which then
+failed outright because Render's build sandbox has a read-only Cargo
+cache directory — not something fixable by retrying or by changing
+project code. Pinning the interpreter version is the same discipline as
+pinning package versions: it keeps "what Render builds with" identical
+to what's been tested locally and in CI, instead of drifting silently
+whenever Render rolls out a new default.
+
+**Trade-off:** One more version number to bump manually, on some future
+day, when there's a reason to move to a newer Python (e.g. adopting a
+feature that needs it, or wheels catching up for a newer interpreter).
+That's a small, deliberate, visible cost compared to a build silently
+breaking on a Render-side runtime change with no corresponding commit in
+this repo to explain why.
+
+**Alternatives considered:** Bumping pydantic/pydantic-core to a version
+with `cp314` wheels — rejected for now since it's an unrelated dependency
+bump with its own risk, when the simpler fix (pin the interpreter) fully
+resolves the immediate failure without touching tested application code.
