@@ -126,9 +126,10 @@ file.
 Two things still need setting manually in the Render dashboard, since
 `render.yaml` intentionally leaves them as `sync: false` rather than
 hardcoding placeholder values into version control:
-- `CORS_ORIGINS` — a JSON array of allowed frontend origins, e.g.
-  `["https://your-app.vercel.app"]`. You'll only know this URL after
-  step 2, so come back and set it once Vercel gives you one.
+- `CORS_ORIGINS` — the allowed frontend origin(s): a single URL (e.g.
+  `https://your-app.vercel.app`), a comma-separated list, or a JSON
+  array — all three are accepted. You'll only know this URL after step
+  2, so come back and set it once Vercel gives you one.
 - `OWNER_EMAIL` / `OWNER_PASSWORD` — used once, manually, in the next
   step. They don't need to be set as real env vars on the service itself
   unless you want `scripts.seed_owner` runnable via a saved shell
@@ -152,7 +153,7 @@ Import this repo into Vercel as a new project:
   (e.g. `https://budgeting-api.onrender.com`)
 
 Deploy, then copy the resulting `https://….vercel.app` URL back into the
-Render service's `CORS_ORIGINS` env var (as a JSON array) and let Render
+Render service's `CORS_ORIGINS` env var and let Render
 redeploy. Until that's set, the API will reject the frontend's requests
 with a CORS error — this is the one manual round trip between the two
 services.

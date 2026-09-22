@@ -343,34 +343,39 @@ with `cp314` wheels — rejected for now since it's an unrelated dependency
 bump with its own risk, when the simpler fix (pin the interpreter) fully
 resolves the immediate failure without touching tested application code.
 
-## CORS_ORIGINS accepts a plain string, not just strict JSON
+## CORS_ORIGINS is a plain str field, parsed in a property — not a list[str]
 
-**Decision:** `Settings.cors_origins` (a `list[str]`) has a `mode="before"`
-validator that accepts a JSON array, a comma-separated string, or a
-single bare origin — not only the strict JSON array pydantic-settings
-expects by default for list-typed env vars.
+**Decision:** `Settings.cors_origins` is typed `str` (default a
+comma-separated local-dev list), with a `cors_origins_list` property that
+splits it into the `list[str]` `CORSMiddleware` actually needs. The
+first attempt at this — keeping `cors_origins: list[str]` and adding a
+`mode="before"` `field_validator` to tolerate non-JSON input — looked
+right and passed its own tests, but still crashed in production.
 
-**Why:** Render's environment variable editor is a plain text field.
-Pasting a bare URL like `https://budgeting-app-sepia.vercel.app` into it
-— the obviously "correct-looking" thing to type — crashed the app at
-startup with an opaque `pydantic_core.ValidationError`, because
-pydantic-settings requires exact JSON (`["https://..."]`) for list
-fields sourced from env vars. That's the same class of problem
-`DATABASE_URL` normalization already solves for provider-supplied
-connection strings: a config value's *natural* shape in a dashboard UI
-doesn't match what the library strictly requires, and the gap should be
-closed in code, not by requiring the user to remember exact JSON
-quoting.
+**Why:** pydantic-settings JSON-decodes any list-typed field's raw env
+var *before* field validators ever run (inside `EnvSettingsSource`, in
+its own source-loading step) — a `field_validator`, `mode="before"` or
+not, never gets a chance to intervene when the source itself raises
+`SettingsError` first. A bare URL or comma-separated value pasted into
+Render's plain-text env var field (the natural thing to type) failed at
+that earlier stage. The bug wasn't caught locally because the first
+round of tests called `Settings(cors_origins="...")` as a constructor
+kwarg, which goes through `InitSettingsSource` — a different code path
+that never invokes the env var's JSON pre-parsing, so the tests passed
+while the real (env-var) path still crashed. Switching the field itself
+to `str` sidesteps pydantic-settings' complex-type parsing entirely, and
+`cors_origins_list` does the (simple) splitting in code we control.
 
-**Trade-off:** Slightly more permissive parsing than pydantic-settings'
-default — a genuinely malformed value (e.g. unbalanced brackets) now
-fails at JSON-decode time inside the validator rather than via
-pydantic's own error message. Covered by `test_config.py` for all three
-accepted shapes (JSON array, comma-separated, single bare origin) plus
-whitespace trimming.
+**Trade-off:** An extra attribute (`cors_origins` vs. `cors_origins_list`)
+instead of one field that's "just a list" — a caller has to know to use
+the `_list` property, not the raw setting. Mitigated by there being only
+one call site (`main.py`'s `CORSMiddleware`).
 
-**Alternatives considered:** Documenting the exact JSON-quoting
-requirement in the README and leaving parsing strict — rejected because
-it's a foot-gun that fails loudly in production the first time someone
-(including future-me) forgets the brackets/quotes, for no benefit over
-handling the obvious input shapes directly.
+**Alternatives considered:** Keeping `list[str]` and trying to intercept
+earlier (e.g. a custom `PydanticBaseSettingsSource`) — rejected as far
+more machinery than this problem warrants. The real lesson here was
+about test fidelity, not architecture: when a test exercises a different
+code path than production does (kwarg vs. real env var), a green suite
+proves nothing. `test_config.py` now sets `CORS_ORIGINS` via
+`monkeypatch.setenv` specifically so it goes through the same
+`EnvSettingsSource` path Render does.

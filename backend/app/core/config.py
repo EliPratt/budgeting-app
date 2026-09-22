@@ -14,25 +14,20 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24 * 7
     cookie_secure: bool = False
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"
-    cors_origins: list[str] = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-    ]
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def _parse_cors_origins(cls, value: object) -> object:
-        """Accept a JSON array (pydantic-settings' default for list-typed
-        env vars) or a plain comma-separated string. Dashboard env var
-        editors (Render, etc.) are plain text fields, and it's easy to
-        paste a value that isn't valid JSON — a comma-separated string
-        is far harder to get wrong.
-        """
-        if not isinstance(value, str):
-            return value
-        if value.strip().startswith("["):
-            return json.loads(value)
+    # Kept as a plain str, not list[str]: pydantic-settings tries to
+    # JSON-decode any list-typed field from its raw env var *before* field
+    # validators run, so a dashboard-pasted bare URL or comma-separated
+    # value (neither valid JSON) crashes the app at startup with no chance
+    # for a validator to normalize it. Parsing it ourselves in
+    # cors_origins_list sidesteps that entirely.
+    cors_origins: str = "http://localhost:5173,http://localhost:5174,http://localhost:5175"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        value = self.cors_origins.strip()
+        if value.startswith("["):
+            return list(json.loads(value))
         return [origin.strip() for origin in value.split(",") if origin.strip()]
 
     @field_validator("database_url")
