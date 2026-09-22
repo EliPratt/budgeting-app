@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from functools import lru_cache
 
 
 class LoginRateLimiter:
@@ -23,3 +24,8 @@ class LoginRateLimiter:
 
     def record_success(self, key: str) -> None:
         self._failures.pop(key, None)
+
+
+@lru_cache
+def get_login_rate_limiter() -> LoginRateLimiter:
+    return LoginRateLimiter(max_attempts=5, window_seconds=60)

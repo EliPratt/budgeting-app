@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.rate_limit import LoginRateLimiter, get_login_rate_limiter
 from app.core.security import hash_password
 from app.db.base import Base
 from app.db.session import get_db
@@ -34,7 +35,10 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     def override_get_db() -> Generator[Session, None, None]:
         yield db_session
 
+    rate_limiter = LoginRateLimiter(max_attempts=5, window_seconds=60)
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_login_rate_limiter] = lambda: rate_limiter
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -47,3 +51,13 @@ def owner_user(db_session: Session) -> User:
     db_session.commit()
     db_session.refresh(user)
     return user
+
+
+@pytest.fixture
+def auth_client(client: TestClient, owner_user: User) -> TestClient:
+    response = client.post(
+        "/api/auth/login",
+        json={"email": owner_user.email, "password": "correct-password"},
+    )
+    assert response.status_code == 200
+    return client

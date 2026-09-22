@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, health
+from app.api.routes import accounts, auth, envelopes, health, transactions
 from app.core.config import settings
 
 app = FastAPI(title="Budgeting App API")
@@ -16,3 +16,6 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
+app.include_router(envelopes.router, prefix="/api/envelopes", tags=["envelopes"])
+app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
