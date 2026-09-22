@@ -1,6 +1,7 @@
 import { AccountsPanel } from '../accounts/AccountsPanel'
 import type { User } from '../../lib/api'
 import { EnvelopesPanel } from '../envelopes/EnvelopesPanel'
+import { GoalsPanel } from '../goals/GoalsPanel'
 import { ImportPanel } from '../imports/ImportPanel'
 import { MonthOverviewPanel } from '../months/MonthOverviewPanel'
 import { RecurringBillsPanel } from '../recurring-bills/RecurringBillsPanel'
@@ -31,6 +32,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         <MonthOverviewPanel />
         <AccountsPanel />
         <EnvelopesPanel />
+        <GoalsPanel />
         <RecurringBillsPanel />
         <ImportPanel />
         <TransactionsPanel />

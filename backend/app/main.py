@@ -6,6 +6,7 @@ from app.api.routes import (
     auth,
     category_rules,
     envelopes,
+    goals,
     health,
     imports,
     months,
@@ -37,3 +38,4 @@ app.include_router(
 app.include_router(
     recurring_bills.router, prefix="/api/recurring-bills", tags=["recurring-bills"]
 )
+app.include_router(goals.router, prefix="/api/goals", tags=["goals"])

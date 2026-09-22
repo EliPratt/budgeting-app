@@ -2,6 +2,7 @@ from app.models.account import Account
 from app.models.category_rule import CategoryRule
 from app.models.envelope import Envelope
 from app.models.envelope_month import EnvelopeMonth
+from app.models.goal import Goal
 from app.models.import_batch import ImportBatch
 from app.models.recurring_bill import RecurringBill
 from app.models.transaction import Transaction
@@ -12,6 +13,7 @@ __all__ = [
     "CategoryRule",
     "Envelope",
     "EnvelopeMonth",
+    "Goal",
     "ImportBatch",
     "RecurringBill",
     "Transaction",

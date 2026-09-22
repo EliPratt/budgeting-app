@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as api from './lib/api'
 import * as accountsApi from './features/accounts/api'
 import * as envelopesApi from './features/envelopes/api'
+import * as goalsApi from './features/goals/api'
 import * as monthsApi from './features/months/api'
 import * as billsApi from './features/recurring-bills/api'
 import * as transactionsApi from './features/transactions/api'
@@ -26,6 +27,7 @@ describe('App', () => {
     vi.spyOn(transactionsApi, 'listTransactions').mockResolvedValue([])
     vi.spyOn(billsApi, 'listRecurringBills').mockResolvedValue([])
     vi.spyOn(billsApi, 'listDueBills').mockResolvedValue([])
+    vi.spyOn(goalsApi, 'listGoals').mockResolvedValue([])
     vi.spyOn(monthsApi, 'getMonthOverview').mockResolvedValue({
       year: 2026,
       month: 1,
@@ -44,6 +46,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Budget' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Accounts' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Envelopes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Recurring bills' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Transactions' })).toBeInTheDocument()
   })

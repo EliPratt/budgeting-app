@@ -160,3 +160,38 @@ cycle per confirm click — rejected because it would take five separate
 clicks to clear a five-months-overdue bill, and the flag in the "due now"
 list would misleadingly persist after the user has already caught up on
 the current cycle.
+
+## A goal is a target laid on an envelope's existing balance, not a separate pot of money
+
+**Decision:** `Goal` has no ledger of its own — `current_balance` for a
+goal is just that envelope's `available` (from the same cumulative-sum
+math introduced for the envelope-month view), computed fresh on every
+read via `goal_progress()`. One goal per envelope, enforced by a unique
+constraint on `envelope_id` plus a friendly 409 at the API layer before
+that constraint would otherwise raise an unhandled `IntegrityError`.
+
+**Why:** "Save $1,000 in the Emergency Fund envelope by December" is
+naturally a property *of* that envelope's balance, not an independent
+number that has to be kept in sync with it. Piggybacking on
+`envelope_summary()` means a goal's progress can never drift out of sync
+with the envelope it's attached to — there's no second number to update
+whenever a transaction posts, gets recategorized, or an assignment
+changes. Enforcing one goal per envelope keeps "the goal for this
+envelope" unambiguous instead of requiring the UI to pick among several
+competing targets on the same balance.
+
+**Trade-off:** A goal can't track a sub-slice of an envelope (e.g., "of
+my $2,000 Savings balance, $500 is earmarked for a vacation and the rest
+is untouchable") — the whole envelope balance counts toward the one goal.
+For this app's scale (a handful of personal goals), splitting further
+would mean either sub-envelopes or a separate goal-ledger model, both of
+which are real added complexity for a distinction most personal budgets
+don't need.
+
+**Alternatives considered:** A dedicated `goal_contributions` ledger,
+summed independently of the envelope's transaction activity — rejected as
+duplicating state that the envelope already tracks, for no benefit until
+an envelope needs to serve more than one goal at once. Multiple goals per
+envelope with contributions split by percentage — rejected as premature;
+nothing in the current scope asks for it, and it can be layered on later
+by relaxing the unique constraint without touching the progress math.
