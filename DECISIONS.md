@@ -195,3 +195,60 @@ an envelope needs to serve more than one goal at once. Multiple goals per
 envelope with contributions split by percentage — rejected as premature;
 nothing in the current scope asks for it, and it can be layered on later
 by relaxing the unique constraint without touching the progress math.
+
+## Spending-by-category queries categorized and uncategorized transactions separately
+
+**Decision:** `spending_by_category()` runs two queries instead of one:
+an inner join from `Envelope` to `Transaction` for categorized spending,
+plus a separate `WHERE envelope_id IS NULL` query folded in as an
+"Uncategorized" row — rather than a single `LEFT JOIN` grouped by
+envelope.
+
+**Why:** An inner join silently drops every transaction with a NULL
+`envelope_id`, which is exactly backwards for a spending report — the
+uncategorized transactions are the ones most worth surfacing, since
+they're the ones the user hasn't gotten around to assigning yet. This
+was caught by its own RED test before it ever reached a running server:
+`test_spending_by_category_buckets_uncategorized_transactions` failed
+first because a follow-on bug (the uncategorized total wasn't negated
+back to a positive spending figure) returned `[]` instead of the
+expected bucket — the join design was right, but the arithmetic on top
+of it wasn't, and the test caught both.
+
+**Trade-off:** Two round trips to the database instead of one `GROUP BY`
+with a `LEFT JOIN` and a `COALESCE(envelope.name, 'Uncategorized')`.
+Negligible for a personal budgeting app's transaction volumes; the
+single-query `LEFT JOIN` form would be worth it only if this report ran
+at a scale where query count actually mattered.
+
+**Alternatives considered:** `LEFT JOIN` with `COALESCE` on the envelope
+name — rejected only because two simple queries were easier to get right
+and to test in isolation than getting the `LEFT JOIN`/`GROUP BY`/`COALESCE`
+combination correct on the first try; revisit if this report is ever the
+actual bottleneck.
+
+## Reports panel is code-split behind React.lazy
+
+**Decision:** `ReportsPanel` (and, transitively, the `recharts` library
+it depends on) loads via `React.lazy()` + `Suspense` in `Dashboard.tsx`,
+rather than a plain top-level import.
+
+**Why:** Adding a full charting library pushed the production JS bundle
+past Vite's 500KB warning threshold in one step — `recharts` alone
+accounts for roughly 140KB gzipped. Every other panel on the dashboard is
+needed immediately; the charts are useful but not part of the critical
+first paint, so deferring their code (and its parse/compile cost) until
+after the rest of the dashboard is interactive is a straightforward,
+low-risk win.
+
+**Trade-off:** One extra network request and a brief "Loading reports…"
+flash the first time a session opens the dashboard — a small UX cost.
+Also, the lazy boundary broke `App.test.tsx`'s dashboard test until it
+was changed from a synchronous `getByRole` to an awaited `findByRole` for
+the Reports heading — anything that renders inside a lazy boundary
+requires tests to account for the async gap.
+
+**Alternatives considered:** Leaving it un-split and raising or ignoring
+Vite's warning threshold — rejected as papering over a real, easy-to-fix
+cost rather than addressing it; the fix here is one `lazy()` call, not a
+structural change.

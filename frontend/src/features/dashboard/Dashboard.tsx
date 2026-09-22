@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { AccountsPanel } from '../accounts/AccountsPanel'
 import type { User } from '../../lib/api'
 import { EnvelopesPanel } from '../envelopes/EnvelopesPanel'
@@ -6,6 +7,10 @@ import { ImportPanel } from '../imports/ImportPanel'
 import { MonthOverviewPanel } from '../months/MonthOverviewPanel'
 import { RecurringBillsPanel } from '../recurring-bills/RecurringBillsPanel'
 import { TransactionsPanel } from '../transactions/TransactionsPanel'
+
+const ReportsPanel = lazy(() =>
+  import('../reports/ReportsPanel').then((module) => ({ default: module.ReportsPanel })),
+)
 
 interface DashboardProps {
   user: User
@@ -36,6 +41,15 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         <RecurringBillsPanel />
         <ImportPanel />
         <TransactionsPanel />
+        <Suspense
+          fallback={
+            <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-400 shadow-sm">
+              Loading reports…
+            </div>
+          }
+        >
+          <ReportsPanel />
+        </Suspense>
       </main>
     </div>
   )

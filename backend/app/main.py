@@ -11,6 +11,7 @@ from app.api.routes import (
     imports,
     months,
     recurring_bills,
+    reports,
     transactions,
 )
 from app.core.config import settings
@@ -39,3 +40,4 @@ app.include_router(
     recurring_bills.router, prefix="/api/recurring-bills", tags=["recurring-bills"]
 )
 app.include_router(goals.router, prefix="/api/goals", tags=["goals"])
+app.include_router(reports.router, prefix="/api/reports", tags=["reports"])

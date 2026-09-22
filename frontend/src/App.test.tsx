@@ -6,6 +6,7 @@ import * as envelopesApi from './features/envelopes/api'
 import * as goalsApi from './features/goals/api'
 import * as monthsApi from './features/months/api'
 import * as billsApi from './features/recurring-bills/api'
+import * as reportsApi from './features/reports/api'
 import * as transactionsApi from './features/transactions/api'
 import App from './App'
 
@@ -28,6 +29,9 @@ describe('App', () => {
     vi.spyOn(billsApi, 'listRecurringBills').mockResolvedValue([])
     vi.spyOn(billsApi, 'listDueBills').mockResolvedValue([])
     vi.spyOn(goalsApi, 'listGoals').mockResolvedValue([])
+    vi.spyOn(reportsApi, 'getSpendingByCategory').mockResolvedValue([])
+    vi.spyOn(reportsApi, 'getIncomeVsExpenseTrend').mockResolvedValue([])
+    vi.spyOn(reportsApi, 'getNetWorthTrend').mockResolvedValue([])
     vi.spyOn(monthsApi, 'getMonthOverview').mockResolvedValue({
       year: 2026,
       month: 1,
@@ -49,5 +53,6 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Recurring bills' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Transactions' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument()
   })
 })
