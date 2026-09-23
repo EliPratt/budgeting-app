@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Bar,
   BarChart,
@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { queryKeys } from '../../lib/queryKeys'
 import {
   getIncomeVsExpenseTrend,
   getNetWorthTrend,
@@ -58,15 +59,22 @@ function toChartNetWorth(points: NetWorthPoint[]): ChartNetWorthPoint[] {
 }
 
 export function ReportsPanel() {
-  const [spending, setSpending] = useState<ChartSpendingPoint[]>([])
-  const [trend, setTrend] = useState<ChartTrendPoint[]>([])
-  const [netWorth, setNetWorth] = useState<ChartNetWorthPoint[]>([])
+  const { data: spendingRaw = [] } = useQuery({
+    queryKey: queryKeys.reportsSpending,
+    queryFn: () => getSpendingByCategory(),
+  })
+  const { data: trendRaw = [] } = useQuery({
+    queryKey: queryKeys.reportsTrend,
+    queryFn: () => getIncomeVsExpenseTrend(6),
+  })
+  const { data: netWorthRaw = [] } = useQuery({
+    queryKey: queryKeys.reportsNetWorth,
+    queryFn: () => getNetWorthTrend(6),
+  })
 
-  useEffect(() => {
-    getSpendingByCategory().then((points) => setSpending(toChartSpending(points)))
-    getIncomeVsExpenseTrend(6).then((points) => setTrend(toChartTrend(points)))
-    getNetWorthTrend(6).then((points) => setNetWorth(toChartNetWorth(points)))
-  }, [])
+  const spending = toChartSpending(spendingRaw)
+  const trend = toChartTrend(trendRaw)
+  const netWorth = toChartNetWorth(netWorthRaw)
 
   return (
     <section className="space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

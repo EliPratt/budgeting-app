@@ -1,6 +1,8 @@
-import { useEffect, useId, useState } from 'react'
-import { listAccounts, type Account } from '../accounts/api'
-import { listEnvelopes, type Envelope } from '../envelopes/api'
+import { useId, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../../lib/queryKeys'
+import { listAccounts } from '../accounts/api'
+import { listEnvelopes } from '../envelopes/api'
 import { createTransaction, listTransactions, type Transaction } from './api'
 
 export function TransactionsPanel() {
@@ -9,46 +11,49 @@ export function TransactionsPanel() {
   const payeeId = useId()
   const accountId2 = useId()
   const envelopeId2 = useId()
+  const queryClient = useQueryClient()
 
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [envelopes, setEnvelopes] = useState<Envelope[]>([])
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const { data: accounts = [] } = useQuery({ queryKey: queryKeys.accounts, queryFn: listAccounts })
+  const { data: envelopes = [] } = useQuery({ queryKey: queryKeys.envelopes, queryFn: listEnvelopes })
+  const { data: transactions = [] } = useQuery({
+    queryKey: queryKeys.transactions,
+    queryFn: () => listTransactions(),
+  })
 
-  const [accountId, setAccountId] = useState<number | ''>('')
+  const [accountIdChoice, setAccountIdChoice] = useState<number | ''>('')
   const [envelopeId, setEnvelopeId] = useState<number | ''>('')
   const [date, setDate] = useState('')
   const [amount, setAmount] = useState('')
   const [payee, setPayee] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    listAccounts().then((loaded) => {
-      setAccounts(loaded)
-      setAccountId((current) => current || (loaded[0]?.id ?? ''))
-    })
-    listEnvelopes().then(setEnvelopes)
-    listTransactions().then(setTransactions)
-  }, [])
+  const accountId: number | '' = accountIdChoice || (accounts[0]?.id ?? '')
+
+  const createMutation = useMutation({
+    mutationFn: (input: Parameters<typeof createTransaction>[0]) => createTransaction(input),
+    onSuccess: (transaction) => {
+      queryClient.setQueryData<Transaction[]>(queryKeys.transactions, (prev = []) => [
+        transaction,
+        ...prev,
+      ])
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts })
+      queryClient.invalidateQueries({ queryKey: ['monthOverview'] })
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
+    },
+  })
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (accountId === '') return
-    setSubmitting(true)
-    try {
-      const transaction = await createTransaction({
-        accountId,
-        date,
-        amount,
-        payee,
-        ...(envelopeId !== '' ? { envelopeId } : {}),
-      })
-      setTransactions((prev) => [transaction, ...prev])
-      setDate('')
-      setAmount('')
-      setPayee('')
-    } finally {
-      setSubmitting(false)
-    }
+    await createMutation.mutateAsync({
+      accountId,
+      date,
+      amount,
+      payee,
+      ...(envelopeId !== '' ? { envelopeId } : {}),
+    })
+    setDate('')
+    setAmount('')
+    setPayee('')
   }
 
   return (
@@ -75,7 +80,7 @@ export function TransactionsPanel() {
           <select
             id={accountId2}
             value={accountId}
-            onChange={(e) => setAccountId(Number(e.target.value))}
+            onChange={(e) => setAccountIdChoice(Number(e.target.value))}
             className="rounded-md border border-slate-300 px-2 py-1 text-sm"
           >
             {accounts.map((account) => (
@@ -149,7 +154,7 @@ export function TransactionsPanel() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={createMutation.isPending}
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
           Add transaction

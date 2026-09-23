@@ -1,6 +1,8 @@
+import { QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './features/auth/AuthContext'
 import { LoginForm } from './features/auth/LoginForm'
 import { Dashboard } from './features/dashboard/Dashboard'
+import { queryClient } from './lib/queryClient'
 
 function AppShell() {
   const { user, loading, login, logout } = useAuth()
@@ -26,9 +28,11 @@ function AppShell() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
+    </QueryClientProvider>
   )
 }
 

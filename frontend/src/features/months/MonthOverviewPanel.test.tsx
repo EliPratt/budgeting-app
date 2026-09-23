@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../../test/render'
 import * as api from './api'
 import { MonthOverviewPanel } from './MonthOverviewPanel'
 
@@ -30,7 +31,7 @@ describe('MonthOverviewPanel', () => {
   it('shows the envelope rows and the month summary', async () => {
     vi.spyOn(api, 'getMonthOverview').mockResolvedValue(OVERVIEW)
 
-    render(<MonthOverviewPanel />)
+    renderWithClient(<MonthOverviewPanel />)
 
     expect(await screen.findByText('Groceries')).toBeInTheDocument()
     expect(screen.getByText('175.00')).toBeInTheDocument()
@@ -43,7 +44,7 @@ describe('MonthOverviewPanel', () => {
       summary: { ...OVERVIEW.summary, to_be_assigned: '0.00', balanced: true },
     })
 
-    render(<MonthOverviewPanel />)
+    renderWithClient(<MonthOverviewPanel />)
 
     expect(await screen.findByText(/every dollar/i)).toBeInTheDocument()
   })
@@ -54,7 +55,7 @@ describe('MonthOverviewPanel', () => {
       summary: { ...OVERVIEW.summary, to_be_assigned: '-200.00', balanced: false },
     })
 
-    render(<MonthOverviewPanel />)
+    renderWithClient(<MonthOverviewPanel />)
 
     expect(await screen.findByText(/over-assigned by \$200.00/i)).toBeInTheDocument()
   })
@@ -70,7 +71,7 @@ describe('MonthOverviewPanel', () => {
       available: '275.00',
     })
 
-    render(<MonthOverviewPanel initialYear={2026} initialMonth={1} />)
+    renderWithClient(<MonthOverviewPanel initialYear={2026} initialMonth={1} />)
     const input = await screen.findByLabelText(/assigned amount for groceries/i)
     await waitFor(() => expect(input).toHaveValue('200.00'))
 
@@ -84,7 +85,7 @@ describe('MonthOverviewPanel', () => {
   it('moves to the next month when the next button is clicked', async () => {
     const overviewSpy = vi.spyOn(api, 'getMonthOverview').mockResolvedValue(OVERVIEW)
 
-    render(<MonthOverviewPanel initialYear={2026} initialMonth={1} />)
+    renderWithClient(<MonthOverviewPanel initialYear={2026} initialMonth={1} />)
     await waitFor(() => expect(overviewSpy).toHaveBeenCalledWith(2026, 1))
 
     fireEvent.click(screen.getByRole('button', { name: /next/i }))

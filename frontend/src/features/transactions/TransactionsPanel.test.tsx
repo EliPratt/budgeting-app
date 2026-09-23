@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../../test/render'
 import * as accountsApi from '../accounts/api'
 import * as envelopesApi from '../envelopes/api'
 import * as api from './api'
@@ -25,7 +26,7 @@ describe('TransactionsPanel', () => {
       },
     ])
 
-    render(<TransactionsPanel />)
+    renderWithClient(<TransactionsPanel />)
 
     expect(await screen.findByText('Trader Joes')).toBeInTheDocument()
   })
@@ -48,7 +49,7 @@ describe('TransactionsPanel', () => {
       source: 'manual',
     })
 
-    render(<TransactionsPanel />)
+    renderWithClient(<TransactionsPanel />)
     await waitFor(() => expect(api.listTransactions).toHaveBeenCalled())
 
     fireEvent.change(screen.getByLabelText(/date/i), { target: { value: '2026-01-06' } })

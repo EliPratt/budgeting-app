@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../../test/render'
 import * as accountsApi from '../accounts/api'
 import * as envelopesApi from '../envelopes/api'
 import * as transactionsApi from '../transactions/api'
@@ -48,7 +49,7 @@ describe('ImportPanel', () => {
     setup()
     const uploadSpy = vi.spyOn(importsApi, 'uploadImport').mockResolvedValue(IMPORT_RESULT)
 
-    render(<ImportPanel />)
+    renderWithClient(<ImportPanel />)
     await screen.findByText('Checking')
 
     const file = new File(['Date,Description,Amount\n'], 'sample.csv', { type: 'text/csv' })
@@ -65,7 +66,7 @@ describe('ImportPanel', () => {
     setup()
     vi.spyOn(importsApi, 'uploadImport').mockResolvedValue(IMPORT_RESULT)
 
-    render(<ImportPanel />)
+    renderWithClient(<ImportPanel />)
     await screen.findByText('Checking')
     const file = new File(['x'], 'sample.csv', { type: 'text/csv' })
     fireEvent.change(screen.getByLabelText(/csv or ofx file/i), { target: { files: [file] } })
@@ -98,7 +99,7 @@ describe('ImportPanel', () => {
       priority: 0,
     })
 
-    render(<ImportPanel />)
+    renderWithClient(<ImportPanel />)
     await screen.findByText('Checking')
     const file = new File(['x'], 'sample.csv', { type: 'text/csv' })
     fireEvent.change(screen.getByLabelText(/csv or ofx file/i), { target: { files: [file] } })

@@ -1,6 +1,9 @@
-import { useEffect, useId, useState } from 'react'
-import { listAccounts, type Account } from '../accounts/api'
-import { listEnvelopes, type Envelope } from '../envelopes/api'
+import { useId, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateMoneyMovement } from '../../lib/invalidateMoneyMovement'
+import { queryKeys } from '../../lib/queryKeys'
+import { listAccounts } from '../accounts/api'
+import { listEnvelopes } from '../envelopes/api'
 import {
   confirmRecurringBill,
   createRecurringBill,
@@ -19,65 +22,73 @@ export function RecurringBillsPanel() {
   const amountId = useId()
   const frequencyId = useId()
   const dueDateId = useId()
+  const queryClient = useQueryClient()
 
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [envelopes, setEnvelopes] = useState<Envelope[]>([])
-  const [bills, setBills] = useState<RecurringBill[]>([])
-  const [dueBills, setDueBills] = useState<RecurringBill[]>([])
+  const { data: accounts = [] } = useQuery({ queryKey: queryKeys.accounts, queryFn: listAccounts })
+  const { data: envelopes = [] } = useQuery({ queryKey: queryKeys.envelopes, queryFn: listEnvelopes })
+  const { data: bills = [] } = useQuery({
+    queryKey: queryKeys.recurringBills,
+    queryFn: listRecurringBills,
+  })
+  const { data: dueBills = [] } = useQuery({ queryKey: queryKeys.dueBills, queryFn: listDueBills })
 
   const [name, setName] = useState('')
-  const [accountId, setAccountId] = useState<number | ''>('')
-  const [envelopeId, setEnvelopeId] = useState<number | ''>('')
+  const [accountIdChoice, setAccountIdChoice] = useState<number | ''>('')
+  const [envelopeIdChoice, setEnvelopeIdChoice] = useState<number | ''>('')
   const [amount, setAmount] = useState('')
   const [frequency, setFrequency] = useState<BillFrequency>('monthly')
   const [nextDueDate, setNextDueDate] = useState('')
-  const [submitting, setSubmitting] = useState(false)
   const [confirmingId, setConfirmingId] = useState<number | null>(null)
 
-  useEffect(() => {
-    listAccounts().then((loaded) => {
-      setAccounts(loaded)
-      setAccountId((current) => current || (loaded[0]?.id ?? ''))
-    })
-    listEnvelopes().then((loaded) => {
-      setEnvelopes(loaded)
-      setEnvelopeId((current) => current || (loaded[0]?.id ?? ''))
-    })
-    listRecurringBills().then(setBills)
-    listDueBills().then(setDueBills)
-  }, [])
+  const accountId: number | '' = accountIdChoice || (accounts[0]?.id ?? '')
+  const envelopeId: number | '' = envelopeIdChoice || (envelopes[0]?.id ?? '')
+
+  const createMutation = useMutation({
+    mutationFn: (input: Parameters<typeof createRecurringBill>[0]) => createRecurringBill(input),
+    onSuccess: (bill) => {
+      queryClient.setQueryData<RecurringBill[]>(queryKeys.recurringBills, (prev = []) =>
+        [...prev, bill].sort((a, b) => a.next_due_date.localeCompare(b.next_due_date)),
+      )
+      if (bill.next_due_date <= new Date().toISOString().slice(0, 10)) {
+        queryClient.setQueryData<RecurringBill[]>(queryKeys.dueBills, (prev = []) => [...prev, bill])
+      }
+    },
+  })
+
+  const confirmMutation = useMutation({
+    mutationFn: (billId: number) => confirmRecurringBill(billId),
+    onSuccess: (result, billId) => {
+      queryClient.setQueryData<RecurringBill[]>(queryKeys.dueBills, (prev = []) =>
+        prev.filter((bill) => bill.id !== billId),
+      )
+      queryClient.setQueryData<RecurringBill[]>(queryKeys.recurringBills, (prev = []) =>
+        prev.map((bill) => (bill.id === billId ? result.bill : bill)),
+      )
+      // Confirming a bill creates a transaction and changes an account's balance.
+      invalidateMoneyMovement(queryClient)
+    },
+  })
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (accountId === '' || envelopeId === '') return
-    setSubmitting(true)
-    try {
-      const bill = await createRecurringBill({
-        name,
-        accountId,
-        envelopeId,
-        amount,
-        frequency,
-        nextDueDate,
-      })
-      setBills((prev) => [...prev, bill].sort((a, b) => a.next_due_date.localeCompare(b.next_due_date)))
-      if (bill.next_due_date <= new Date().toISOString().slice(0, 10)) {
-        setDueBills((prev) => [...prev, bill])
-      }
-      setName('')
-      setAmount('')
-      setNextDueDate('')
-    } finally {
-      setSubmitting(false)
-    }
+    await createMutation.mutateAsync({
+      name,
+      accountId,
+      envelopeId,
+      amount,
+      frequency,
+      nextDueDate,
+    })
+    setName('')
+    setAmount('')
+    setNextDueDate('')
   }
 
   async function handleConfirm(billId: number) {
     setConfirmingId(billId)
     try {
-      const result = await confirmRecurringBill(billId)
-      setDueBills((prev) => prev.filter((bill) => bill.id !== billId))
-      setBills((prev) => prev.map((bill) => (bill.id === billId ? result.bill : bill)))
+      await confirmMutation.mutateAsync(billId)
     } finally {
       setConfirmingId(null)
     }
@@ -141,7 +152,7 @@ export function RecurringBillsPanel() {
           <select
             id={accountFieldId}
             value={accountId}
-            onChange={(e) => setAccountId(Number(e.target.value))}
+            onChange={(e) => setAccountIdChoice(Number(e.target.value))}
             className="rounded-md border border-slate-300 px-2 py-1 text-sm"
           >
             {accounts.map((account) => (
@@ -159,7 +170,7 @@ export function RecurringBillsPanel() {
           <select
             id={envelopeFieldId}
             value={envelopeId}
-            onChange={(e) => setEnvelopeId(Number(e.target.value))}
+            onChange={(e) => setEnvelopeIdChoice(Number(e.target.value))}
             className="rounded-md border border-slate-300 px-2 py-1 text-sm"
           >
             {envelopes.map((envelope) => (
@@ -219,7 +230,7 @@ export function RecurringBillsPanel() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={createMutation.isPending}
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
           Add bill

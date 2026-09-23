@@ -1,7 +1,10 @@
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { invalidateMoneyMovement } from '../../lib/invalidateMoneyMovement'
+import { queryKeys } from '../../lib/queryKeys'
 import { createCategoryRule } from '../category-rules/api'
-import { listAccounts, type Account } from '../accounts/api'
-import { listEnvelopes, type Envelope } from '../envelopes/api'
+import { listAccounts } from '../accounts/api'
+import { listEnvelopes } from '../envelopes/api'
 import { updateTransaction, type Transaction } from '../transactions/api'
 import { uploadImport, type ImportBatch } from './api'
 
@@ -14,31 +17,22 @@ interface ReviewRow {
 export function ImportPanel() {
   const accountSelectId = useId()
   const fileInputId = useId()
+  const queryClient = useQueryClient()
 
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [envelopes, setEnvelopes] = useState<Envelope[]>([])
-  const [accountId, setAccountId] = useState<number | ''>('')
+  const { data: accounts = [] } = useQuery({ queryKey: queryKeys.accounts, queryFn: listAccounts })
+  const { data: envelopes = [] } = useQuery({ queryKey: queryKeys.envelopes, queryFn: listEnvelopes })
+
+  const [accountIdChoice, setAccountIdChoice] = useState<number | ''>('')
   const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [batch, setBatch] = useState<ImportBatch | null>(null)
   const [rows, setRows] = useState<ReviewRow[]>([])
 
-  useEffect(() => {
-    listAccounts().then((loaded) => {
-      setAccounts(loaded)
-      setAccountId((current) => current || (loaded[0]?.id ?? ''))
-    })
-    listEnvelopes().then(setEnvelopes)
-  }, [])
+  const accountId: number | '' = accountIdChoice || (accounts[0]?.id ?? '')
 
-  async function handleUpload(event: React.FormEvent) {
-    event.preventDefault()
-    if (accountId === '' || file === null) return
-    setUploading(true)
-    setError(null)
-    try {
-      const result = await uploadImport(accountId, file)
+  const uploadMutation = useMutation({
+    mutationFn: ({ accountId, file }: { accountId: number; file: File }) => uploadImport(accountId, file),
+    onSuccess: (result) => {
       setBatch(result.batch)
       setRows(
         result.created.map((transaction) => ({
@@ -47,11 +41,32 @@ export function ImportPanel() {
           saveAsRule: false,
         })),
       )
+      invalidateMoneyMovement(queryClient)
+    },
+  })
+
+  const assignMutation = useMutation({
+    mutationFn: ({ transactionId, envelopeId }: { transactionId: number; envelopeId: number }) =>
+      updateTransaction(transactionId, { envelopeId }),
+    onSuccess: (updated) => {
+      setRows((prev) =>
+        prev.map((r) => (r.transaction.id === updated.id ? { ...r, transaction: updated } : r)),
+      )
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions })
+      queryClient.invalidateQueries({ queryKey: ['monthOverview'] })
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
+    },
+  })
+
+  async function handleUpload(event: React.FormEvent) {
+    event.preventDefault()
+    if (accountId === '' || file === null) return
+    setError(null)
+    try {
+      await uploadMutation.mutateAsync({ accountId, file })
       setFile(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed.')
-    } finally {
-      setUploading(false)
     }
   }
 
@@ -59,11 +74,10 @@ export function ImportPanel() {
     const row = rows[index]
     if (row.envelopeId === '') return
 
-    const updated = await updateTransaction(row.transaction.id, { envelopeId: row.envelopeId })
+    await assignMutation.mutateAsync({ transactionId: row.transaction.id, envelopeId: row.envelopeId })
     if (row.saveAsRule) {
       await createCategoryRule({ envelopeId: row.envelopeId, pattern: row.transaction.payee })
     }
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, transaction: updated } : r)))
   }
 
   return (
@@ -78,7 +92,7 @@ export function ImportPanel() {
           <select
             id={accountSelectId}
             value={accountId}
-            onChange={(e) => setAccountId(Number(e.target.value))}
+            onChange={(e) => setAccountIdChoice(Number(e.target.value))}
             className="rounded-md border border-slate-300 px-2 py-1 text-sm"
           >
             {accounts.map((account) => (
@@ -104,7 +118,7 @@ export function ImportPanel() {
 
         <button
           type="submit"
-          disabled={uploading || file === null}
+          disabled={uploadMutation.isPending || file === null}
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
           Upload

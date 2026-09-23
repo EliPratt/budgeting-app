@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../../test/render'
 import * as reportsApi from './api'
 import { ReportsPanel } from './ReportsPanel'
 
@@ -11,7 +12,7 @@ describe('ReportsPanel', () => {
     vi.spyOn(reportsApi, 'getIncomeVsExpenseTrend').mockResolvedValue([])
     vi.spyOn(reportsApi, 'getNetWorthTrend').mockResolvedValue([])
 
-    render(<ReportsPanel />)
+    renderWithClient(<ReportsPanel />)
 
     expect(await screen.findByText(/no spending yet this month/i)).toBeInTheDocument()
     expect(screen.queryByTestId('spending-by-category-chart')).not.toBeInTheDocument()
@@ -28,7 +29,7 @@ describe('ReportsPanel', () => {
       { month: '2026-01', net_worth: '2500.00' },
     ])
 
-    render(<ReportsPanel />)
+    renderWithClient(<ReportsPanel />)
 
     expect(await screen.findByTestId('spending-by-category-chart')).toBeInTheDocument()
     expect(screen.getByTestId('income-vs-expense-chart')).toBeInTheDocument()

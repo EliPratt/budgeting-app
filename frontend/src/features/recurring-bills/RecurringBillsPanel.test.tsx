@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../../test/render'
 import * as accountsApi from '../accounts/api'
 import * as envelopesApi from '../envelopes/api'
 import * as billsApi from './api'
@@ -33,7 +34,7 @@ describe('RecurringBillsPanel', () => {
     vi.spyOn(billsApi, 'listRecurringBills').mockResolvedValue([BILL])
     vi.spyOn(billsApi, 'listDueBills').mockResolvedValue([])
 
-    render(<RecurringBillsPanel />)
+    renderWithClient(<RecurringBillsPanel />)
 
     expect(await screen.findByText('Rent')).toBeInTheDocument()
     expect(screen.getByText('Next: 2026-01-15')).toBeInTheDocument()
@@ -44,7 +45,7 @@ describe('RecurringBillsPanel', () => {
     vi.spyOn(billsApi, 'listRecurringBills').mockResolvedValue([BILL])
     vi.spyOn(billsApi, 'listDueBills').mockResolvedValue([BILL])
 
-    render(<RecurringBillsPanel />)
+    renderWithClient(<RecurringBillsPanel />)
 
     expect(await screen.findByText(/due now/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
@@ -67,7 +68,7 @@ describe('RecurringBillsPanel', () => {
       },
     })
 
-    render(<RecurringBillsPanel />)
+    renderWithClient(<RecurringBillsPanel />)
     await screen.findByText(/due now/i)
 
     fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
@@ -81,7 +82,7 @@ describe('RecurringBillsPanel', () => {
     vi.spyOn(billsApi, 'listRecurringBills').mockResolvedValue([BILL])
     vi.spyOn(billsApi, 'listDueBills').mockResolvedValue([])
 
-    render(<RecurringBillsPanel />)
+    renderWithClient(<RecurringBillsPanel />)
 
     await screen.findByText('Rent')
     expect(screen.queryByText(/due now/i)).not.toBeInTheDocument()
@@ -93,7 +94,7 @@ describe('RecurringBillsPanel', () => {
     vi.spyOn(billsApi, 'listDueBills').mockResolvedValue([])
     vi.spyOn(billsApi, 'createRecurringBill').mockResolvedValue(BILL)
 
-    render(<RecurringBillsPanel />)
+    renderWithClient(<RecurringBillsPanel />)
     await screen.findByText('Checking')
 
     fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'Rent' } })

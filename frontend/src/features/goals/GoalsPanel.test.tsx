@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../../test/render'
 import * as envelopesApi from '../envelopes/api'
 import * as goalsApi from './api'
 import { GoalsPanel } from './GoalsPanel'
@@ -31,7 +32,7 @@ describe('GoalsPanel', () => {
     setup()
     vi.spyOn(goalsApi, 'listGoals').mockResolvedValue([GOAL])
 
-    render(<GoalsPanel />)
+    renderWithClient(<GoalsPanel />)
 
     expect(await screen.findByText(/250\.00 of 1000\.00 \(25\.00%\)/)).toBeInTheDocument()
     expect(screen.getByText(/suggested: 125\.00\/mo for 6 more months/i)).toBeInTheDocument()
@@ -43,7 +44,7 @@ describe('GoalsPanel', () => {
       { ...GOAL, achieved: true, percent_complete: '100.00' },
     ])
 
-    render(<GoalsPanel />)
+    renderWithClient(<GoalsPanel />)
 
     expect(await screen.findByText(/goal achieved/i)).toBeInTheDocument()
     expect(screen.queryByText(/suggested:/i)).not.toBeInTheDocument()
@@ -54,7 +55,7 @@ describe('GoalsPanel', () => {
     vi.spyOn(goalsApi, 'listGoals').mockResolvedValue([])
     vi.spyOn(goalsApi, 'createGoal').mockResolvedValue(GOAL)
 
-    render(<GoalsPanel />)
+    renderWithClient(<GoalsPanel />)
     await screen.findByText('Emergency Fund')
 
     fireEvent.change(screen.getByLabelText(/target amount/i), { target: { value: '1000.00' } })
@@ -76,7 +77,7 @@ describe('GoalsPanel', () => {
     vi.spyOn(goalsApi, 'listGoals').mockResolvedValue([GOAL])
     vi.spyOn(goalsApi, 'deleteGoal').mockResolvedValue(undefined)
 
-    render(<GoalsPanel />)
+    renderWithClient(<GoalsPanel />)
     await screen.findByText(/250\.00 of 1000\.00/)
 
     fireEvent.click(screen.getByRole('button', { name: /remove/i }))

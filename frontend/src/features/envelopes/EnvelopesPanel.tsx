@@ -1,30 +1,32 @@
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../../lib/queryKeys'
 import { createEnvelope, listEnvelopes, type Envelope } from './api'
 
 export function EnvelopesPanel() {
   const nameId = useId()
   const groupId = useId()
+  const queryClient = useQueryClient()
 
-  const [envelopes, setEnvelopes] = useState<Envelope[]>([])
+  const { data: envelopes = [] } = useQuery({ queryKey: queryKeys.envelopes, queryFn: listEnvelopes })
+
   const [name, setName] = useState('')
   const [groupName, setGroupName] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    listEnvelopes().then(setEnvelopes)
-  }, [])
+  const createMutation = useMutation({
+    mutationFn: (input: Parameters<typeof createEnvelope>[0]) => createEnvelope(input),
+    onSuccess: (envelope) => {
+      queryClient.setQueryData<Envelope[]>(queryKeys.envelopes, (prev = []) => [...prev, envelope])
+      // The current month's Budget table has a row per envelope.
+      queryClient.invalidateQueries({ queryKey: ['monthOverview'] })
+    },
+  })
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    setSubmitting(true)
-    try {
-      const envelope = await createEnvelope({ name, groupName })
-      setEnvelopes((prev) => [...prev, envelope])
-      setName('')
-      setGroupName('')
-    } finally {
-      setSubmitting(false)
-    }
+    await createMutation.mutateAsync({ name, groupName })
+    setName('')
+    setGroupName('')
   }
 
   return (
@@ -70,7 +72,7 @@ export function EnvelopesPanel() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={createMutation.isPending}
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
           Add envelope

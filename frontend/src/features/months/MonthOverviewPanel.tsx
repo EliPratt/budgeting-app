@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../../lib/queryKeys'
 import { assignEnvelopeMonth, getMonthOverview, type MonthOverview, type MonthSummary } from './api'
 
 const MONTH_NAMES = [
@@ -41,15 +43,19 @@ export function MonthOverviewPanel({ initialYear, initialMonth }: MonthOverviewP
   const now = new Date()
   const [year, setYear] = useState(initialYear ?? now.getFullYear())
   const [month, setMonth] = useState(initialMonth ?? now.getMonth() + 1)
-  const [overview, setOverview] = useState<MonthOverview | null>(null)
   const [drafts, setDrafts] = useState<Record<number, string>>({})
+  const queryClient = useQueryClient()
+
+  const { data: overview } = useQuery({
+    queryKey: queryKeys.monthOverview(year, month),
+    queryFn: () => getMonthOverview(year, month),
+  })
 
   useEffect(() => {
-    getMonthOverview(year, month).then((data) => {
-      setOverview(data)
-      setDrafts(Object.fromEntries(data.envelopes.map((e) => [e.id, e.assigned])))
-    })
-  }, [year, month])
+    if (overview) {
+      setDrafts(Object.fromEntries(overview.envelopes.map((e) => [e.id, e.assigned])))
+    }
+  }, [overview])
 
   function goToMonth(delta: number) {
     const [newYear, newMonth] = shiftMonth(year, month, delta)
@@ -57,17 +63,21 @@ export function MonthOverviewPanel({ initialYear, initialMonth }: MonthOverviewP
     setMonth(newMonth)
   }
 
+  const assignMutation = useMutation({
+    mutationFn: ({ envelopeId, draft }: { envelopeId: number; draft: string }) =>
+      assignEnvelopeMonth(year, month, envelopeId, draft),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<MonthOverview>(queryKeys.monthOverview(year, month), (prev) =>
+        prev
+          ? { ...prev, envelopes: prev.envelopes.map((e) => (e.id === updated.id ? updated : e)) }
+          : prev,
+      )
+    },
+  })
+
   async function handleAssign(envelopeId: number) {
     const draft = drafts[envelopeId]
-    const updated = await assignEnvelopeMonth(year, month, envelopeId, draft)
-    setOverview((prev) =>
-      prev
-        ? {
-            ...prev,
-            envelopes: prev.envelopes.map((e) => (e.id === envelopeId ? updated : e)),
-          }
-        : prev,
-    )
+    await assignMutation.mutateAsync({ envelopeId, draft })
   }
 
   return (

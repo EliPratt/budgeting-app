@@ -1,4 +1,6 @@
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../../lib/queryKeys'
 import { createAccount, listAccounts, type Account, type AccountType } from './api'
 
 const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
@@ -11,28 +13,28 @@ export function AccountsPanel() {
   const nameId = useId()
   const typeId = useId()
   const balanceId = useId()
+  const queryClient = useQueryClient()
 
-  const [accounts, setAccounts] = useState<Account[]>([])
+  const { data: accounts = [] } = useQuery({ queryKey: queryKeys.accounts, queryFn: listAccounts })
+
   const [name, setName] = useState('')
   const [type, setType] = useState<AccountType>('checking')
   const [startingBalance, setStartingBalance] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    listAccounts().then(setAccounts)
-  }, [])
+  const createMutation = useMutation({
+    mutationFn: (input: Parameters<typeof createAccount>[0]) => createAccount(input),
+    onSuccess: (account) => {
+      queryClient.setQueryData<Account[]>(queryKeys.accounts, (prev = []) => [...prev, account])
+      // A new account's starting balance changes net worth.
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
+    },
+  })
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    setSubmitting(true)
-    try {
-      const account = await createAccount({ name, type, startingBalance })
-      setAccounts((prev) => [...prev, account])
-      setName('')
-      setStartingBalance('')
-    } finally {
-      setSubmitting(false)
-    }
+    await createMutation.mutateAsync({ name, type, startingBalance })
+    setName('')
+    setStartingBalance('')
   }
 
   return (
@@ -96,7 +98,7 @@ export function AccountsPanel() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={createMutation.isPending}
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
           Add account

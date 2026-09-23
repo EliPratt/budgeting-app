@@ -379,3 +379,55 @@ code path than production does (kwarg vs. real env var), a green suite
 proves nothing. `test_config.py` now sets `CORS_ORIGINS` via
 `monkeypatch.setenv` specifically so it goes through the same
 `EnvSettingsSource` path Render does.
+
+## Frontend adopts @tanstack/react-query instead of ad-hoc useState/useEffect fetching
+
+**Decision:** Every dashboard panel (`AccountsPanel`, `EnvelopesPanel`,
+`GoalsPanel`, `RecurringBillsPanel`, `ImportPanel`, `TransactionsPanel`,
+`MonthOverviewPanel`, `ReportsPanel`) now fetches its data through
+`useQuery`/`useMutation` against a small set of shared query keys
+(`frontend/src/lib/queryKeys.ts`), instead of each panel independently
+running its own `useState` + `useEffect(() => fetch().then(setState))`.
+
+**Why:** Every panel in `Dashboard.tsx` was a fully independent island —
+no shared cache, no way for one panel's mutation to notify another
+panel that its data was now stale. Concretely: adding an envelope in
+`EnvelopesPanel` had no way to tell `MonthOverviewPanel` (the Budget
+table, which shows one row per envelope) that a new envelope existed;
+the Budget table only ever refreshed on its own month-navigation
+`useEffect`. A live user (verified by hand against the deployed app)
+added an envelope and it silently didn't appear in the Budget view
+until a full page reload — a real, user-visible bug, not a hypothetical
+one. React Query fixes this at the root: panels that read the same
+entity (accounts, envelopes) share one cached query by key, so any
+consumer re-renders when that key's data changes; and a mutation can
+explicitly `invalidateQueries` on keys it doesn't own (e.g., creating an
+envelope invalidates `['monthOverview']`; confirming a recurring bill or
+importing transactions invalidates the shared `invalidateMoneyMovement`
+set of keys — accounts, transactions, monthOverview, and reports — since
+all four are affected by money actually moving).
+
+**Trade-off:** A new dependency and a genuinely bigger surface area to
+learn than raw `useState`/`useEffect` — every panel test needed a
+`QueryClientProvider` wrapper (`frontend/src/test/render.tsx`,
+`renderWithClient`), and mutations needed an extra explicit
+single-argument wrapper (`mutationFn: (input) => apiFn(input)`) because
+this version of react-query passes a second `mutationFnContext` argument
+that would otherwise leak into `toHaveBeenCalledWith` assertions in
+tests. Mutations that need to preserve an exact optimistic UI update
+(e.g., `assignEnvelopeMonth`, `confirmRecurringBill`) use
+`queryClient.setQueryData` to merge the mutation's response directly,
+rather than `invalidateQueries` + refetch — this matters because a
+refetch would re-run the same (mocked, in tests; live, in production)
+query and could show stale data for a moment, or in tests, revert to a
+static mock's original value.
+
+**Alternatives considered:** Lifting a manual `refetch` callback prop
+through `Dashboard.tsx` to each panel — rejected as a smaller import but
+a worse long-term pattern: it doesn't solve request deduplication (six
+panels independently calling `listAccounts()`/`listEnvelopes()` on
+mount), doesn't give a real cache (so nothing is shared, just a "please
+refetch yourself" signal), and scales badly as more cross-panel
+dependencies get added. React Query is the more durable choice for a
+project explicitly meant to demonstrate solid full-stack engineering
+practice, at the cost of the dependency and the learning curve above.

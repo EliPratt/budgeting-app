@@ -1,48 +1,56 @@
-import { useEffect, useId, useState } from 'react'
-import { listEnvelopes, type Envelope } from '../envelopes/api'
+import { useId, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '../../lib/queryKeys'
+import { listEnvelopes } from '../envelopes/api'
 import { createGoal, deleteGoal, listGoals, type Goal } from './api'
 
 export function GoalsPanel() {
   const envelopeFieldId = useId()
   const amountId = useId()
   const dateId = useId()
+  const queryClient = useQueryClient()
 
-  const [envelopes, setEnvelopes] = useState<Envelope[]>([])
-  const [goals, setGoals] = useState<Goal[]>([])
-  const [envelopeId, setEnvelopeId] = useState<number | ''>('')
+  const { data: envelopes = [] } = useQuery({ queryKey: queryKeys.envelopes, queryFn: listEnvelopes })
+  const { data: goals = [] } = useQuery({ queryKey: queryKeys.goals, queryFn: listGoals })
+
+  const [envelopeIdChoice, setEnvelopeIdChoice] = useState<number | ''>('')
   const [targetAmount, setTargetAmount] = useState('')
   const [targetDate, setTargetDate] = useState('')
-  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    listEnvelopes().then((loaded) => {
-      setEnvelopes(loaded)
-      setEnvelopeId((current) => current || (loaded[0]?.id ?? ''))
-    })
-    listGoals().then(setGoals)
-  }, [])
+  const envelopeId: number | '' = envelopeIdChoice || (envelopes[0]?.id ?? '')
+
+  const createMutation = useMutation({
+    mutationFn: (input: Parameters<typeof createGoal>[0]) => createGoal(input),
+    onSuccess: (goal) => {
+      queryClient.setQueryData<Goal[]>(queryKeys.goals, (prev = []) => [...prev, goal])
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (goalId: number) => deleteGoal(goalId),
+    onSuccess: (_data, goalId) => {
+      queryClient.setQueryData<Goal[]>(queryKeys.goals, (prev = []) =>
+        prev.filter((goal) => goal.id !== goalId),
+      )
+    },
+  })
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (envelopeId === '') return
-    setSubmitting(true)
     setError(null)
     try {
-      const goal = await createGoal({ envelopeId, targetAmount, targetDate })
-      setGoals((prev) => [...prev, goal])
+      await createMutation.mutateAsync({ envelopeId, targetAmount, targetDate })
       setTargetAmount('')
       setTargetDate('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create goal.')
-    } finally {
-      setSubmitting(false)
     }
   }
 
   async function handleDelete(goalId: number) {
-    await deleteGoal(goalId)
-    setGoals((prev) => prev.filter((goal) => goal.id !== goalId))
+    await deleteMutation.mutateAsync(goalId)
   }
 
   return (
@@ -96,7 +104,7 @@ export function GoalsPanel() {
           <select
             id={envelopeFieldId}
             value={envelopeId}
-            onChange={(e) => setEnvelopeId(Number(e.target.value))}
+            onChange={(e) => setEnvelopeIdChoice(Number(e.target.value))}
             className="rounded-md border border-slate-300 px-2 py-1 text-sm"
           >
             {envelopes.map((envelope) => (
@@ -138,7 +146,7 @@ export function GoalsPanel() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={createMutation.isPending}
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
           Add goal

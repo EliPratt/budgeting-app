@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../../test/render'
 import * as api from './api'
 import { AccountsPanel } from './AccountsPanel'
 
@@ -11,10 +12,14 @@ describe('AccountsPanel', () => {
       { id: 1, name: 'Checking', type: 'checking', starting_balance: '100.00', balance: '75.00' },
     ])
 
-    render(<AccountsPanel />)
+    renderWithClient(<AccountsPanel />)
 
-    expect(await screen.findByText('Checking')).toBeInTheDocument()
-    expect(screen.getByText('$75.00')).toBeInTheDocument()
+    // 'Checking' alone is ambiguous: it's also the static account-type
+    // dropdown's option label, present before the fetched list ever
+    // renders. Anchor on the balance, which only appears once the
+    // account row itself has rendered.
+    expect(await screen.findByText('$75.00')).toBeInTheDocument()
+    expect(screen.getByText('Checking', { selector: 'span' })).toBeInTheDocument()
   })
 
   it('adds a new account to the list after submitting the form', async () => {
@@ -27,7 +32,7 @@ describe('AccountsPanel', () => {
       balance: '500.00',
     })
 
-    render(<AccountsPanel />)
+    renderWithClient(<AccountsPanel />)
     await waitFor(() => expect(api.listAccounts).toHaveBeenCalled())
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Savings' } })
@@ -35,7 +40,8 @@ describe('AccountsPanel', () => {
     fireEvent.change(screen.getByLabelText(/starting balance/i), { target: { value: '500.00' } })
     fireEvent.click(screen.getByRole('button', { name: /add account/i }))
 
-    expect(await screen.findByText('Savings')).toBeInTheDocument()
+    // Same ambiguity as above: 'Savings' is also a static <option> label.
+    expect(await screen.findByText('$500.00')).toBeInTheDocument()
     expect(api.createAccount).toHaveBeenCalledWith({
       name: 'Savings',
       type: 'savings',

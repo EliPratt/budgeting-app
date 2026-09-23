@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderWithClient } from '../../test/render'
 import * as api from './api'
 import { EnvelopesPanel } from './EnvelopesPanel'
 
@@ -11,7 +12,7 @@ describe('EnvelopesPanel', () => {
       { id: 1, name: 'Groceries', group_name: 'Everyday' },
     ])
 
-    render(<EnvelopesPanel />)
+    renderWithClient(<EnvelopesPanel />)
 
     expect(await screen.findByText('Groceries')).toBeInTheDocument()
   })
@@ -20,7 +21,7 @@ describe('EnvelopesPanel', () => {
     vi.spyOn(api, 'listEnvelopes').mockResolvedValue([])
     vi.spyOn(api, 'createEnvelope').mockResolvedValue({ id: 2, name: 'Rent', group_name: null })
 
-    render(<EnvelopesPanel />)
+    renderWithClient(<EnvelopesPanel />)
     await waitFor(() => expect(api.listEnvelopes).toHaveBeenCalled())
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Rent' } })
