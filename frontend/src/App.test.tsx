@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as api from './lib/api'
 import * as accountsApi from './features/accounts/api'
@@ -47,12 +47,22 @@ describe('App', () => {
     render(<App />)
 
     expect(await screen.findByText('owner@example.com')).toBeInTheDocument()
+
+    // Budget tab is the default.
     expect(screen.getByRole('heading', { name: 'Budget' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Accounts' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Envelopes' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Accounts' }))
+    expect(await screen.findByRole('heading', { name: 'Accounts' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }))
+    expect(await screen.findByRole('heading', { name: 'Transactions' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Bills & Goals' }))
+    expect(await screen.findByRole('heading', { name: 'Recurring bills' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Recurring bills' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Transactions' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Reports' }))
     expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument()
   })
 })

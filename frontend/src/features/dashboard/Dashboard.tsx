@@ -7,7 +7,7 @@ import { ImportPanel } from '../imports/ImportPanel'
 import { MonthOverviewPanel } from '../months/MonthOverviewPanel'
 import { RecurringBillsPanel } from '../recurring-bills/RecurringBillsPanel'
 import { TransactionsPanel } from '../transactions/TransactionsPanel'
-import { Button } from '../../lib/ui'
+import { Button, Tabs } from '../../lib/ui'
 
 const ReportsPanel = lazy(() =>
   import('../reports/ReportsPanel').then((module) => ({ default: module.ReportsPanel })),
@@ -33,33 +33,56 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-6 p-6">
-        <MonthOverviewPanel />
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <EnvelopesPanel />
-          </div>
-          <AccountsPanel />
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <GoalsPanel />
-          <RecurringBillsPanel />
-        </div>
-
-        <ImportPanel />
-        <TransactionsPanel />
-
-        <Suspense
-          fallback={
-            <div className="rounded-lg border border-paper-200 bg-white p-6 text-sm text-paper-400">
-              Loading reports…
-            </div>
-          }
-        >
-          <ReportsPanel />
-        </Suspense>
+      <main className="mx-auto max-w-6xl p-6">
+        <Tabs
+          tabs={[
+            {
+              label: 'Budget',
+              content: (
+                <div className="space-y-6">
+                  <MonthOverviewPanel />
+                  <EnvelopesPanel />
+                </div>
+              ),
+            },
+            {
+              label: 'Accounts',
+              content: <AccountsPanel />,
+            },
+            {
+              label: 'Transactions',
+              content: (
+                <div className="space-y-6">
+                  <ImportPanel />
+                  <TransactionsPanel />
+                </div>
+              ),
+            },
+            {
+              label: 'Bills & Goals',
+              content: (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <RecurringBillsPanel />
+                  <GoalsPanel />
+                </div>
+              ),
+            },
+            {
+              label: 'Reports',
+              content: (
+                <Suspense
+                  fallback={
+                    <div className="rounded-lg border border-paper-200 bg-white p-6 text-sm text-paper-400">
+                      Loading reports…
+                    </div>
+                  }
+                >
+                  <ReportsPanel />
+                </Suspense>
+              ),
+            },
+          ]}
+        />
       </main>
     </div>
   )
