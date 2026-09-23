@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../../lib/api'
+import { queryClient } from '../../lib/queryClient'
 import { AuthProvider, useAuth } from './AuthContext'
 
 function Probe() {
@@ -79,5 +80,26 @@ describe('AuthProvider', () => {
     })
 
     expect(screen.getByTestId('user')).toHaveTextContent('none')
+  })
+
+  it('clears cached query data on logout, so sensitive data does not linger in memory', async () => {
+    vi.spyOn(api, 'getMe').mockResolvedValue({ email: 'owner@example.com' })
+    vi.spyOn(api, 'logout').mockResolvedValue(undefined)
+
+    // Simulate account/transaction data a panel would have cached while logged in.
+    queryClient.setQueryData(['accounts'], [{ id: 1, name: 'Checking', balance: '1000.00' }])
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+    await screen.findByText('owner@example.com')
+
+    await act(async () => {
+      screen.getByText('logout').click()
+    })
+
+    expect(queryClient.getQueryData(['accounts'])).toBeUndefined()
   })
 })

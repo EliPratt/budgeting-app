@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import * as api from '../../lib/api'
 import type { User } from '../../lib/api'
+import { queryClient } from '../../lib/queryClient'
 
 interface AuthContextValue {
   user: User | null
@@ -30,6 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function logout() {
     await api.logout()
     setUser(null)
+    // Account balances, transactions, and other financial data cached by
+    // react-query must not linger in memory past an explicit logout.
+    queryClient.clear()
   }
 
   return (
