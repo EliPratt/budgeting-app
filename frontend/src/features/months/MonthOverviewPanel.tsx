@@ -124,36 +124,56 @@ export function MonthOverviewPanel({ initialYear, initialMonth }: MonthOverviewP
               <tr className="text-left text-xs text-paper-400">
                 <th className="pb-2 font-medium">Envelope</th>
                 <th className="pb-2 font-medium">Assigned</th>
-                <th className="pb-2 text-right font-medium">Activity</th>
                 <th className="pb-2 text-right font-medium">Available</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-paper-100">
-              {overview.envelopes.map((envelope) => (
-                <tr key={envelope.id}>
-                  <td className="py-2 text-paper-700">{envelope.name}</td>
-                  <td className="py-2">
-                    <label className="sr-only" htmlFor={`assigned-${envelope.id}`}>
-                      Assigned amount for {envelope.name}
-                    </label>
-                    <Input
-                      id={`assigned-${envelope.id}`}
-                      value={drafts[envelope.id] ?? ''}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({ ...prev, [envelope.id]: e.target.value }))
-                      }
-                      onBlur={() => handleAssign(envelope.id)}
-                      className="w-24"
-                    />
-                  </td>
-                  <td className="py-2 text-right text-paper-500">
-                    <Amount value={envelope.activity} />
-                  </td>
-                  <td className="py-2 text-right font-medium text-paper-900">
-                    <Amount value={envelope.available} signed />
-                  </td>
-                </tr>
-              ))}
+              {overview.envelopes.map((envelope) => {
+                const spent = Math.abs(Number(envelope.activity))
+                const assignedNum = Number(envelope.assigned)
+                const overspent = assignedNum > 0 ? spent > assignedNum : spent > 0
+                const pct = assignedNum > 0 ? Math.min(100, (spent / assignedNum) * 100) : overspent ? 100 : 0
+
+                return (
+                  <tr key={envelope.id}>
+                    <td className="py-3 align-top">
+                      <div className="font-medium text-paper-700">{envelope.name}</div>
+                      <div className="mt-1.5 h-1.5 w-40 max-w-full overflow-hidden rounded-full bg-paper-100">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${pct}%`,
+                            backgroundColor: overspent
+                              ? 'var(--color-money-negative)'
+                              : 'var(--color-teal-400)',
+                          }}
+                        />
+                      </div>
+                      <div className="mt-1 text-xs text-paper-400">
+                        <Amount value={envelope.activity ? spent : 0} /> spent of{' '}
+                        <Amount value={envelope.assigned} />
+                      </div>
+                    </td>
+                    <td className="py-3 align-top">
+                      <label className="sr-only" htmlFor={`assigned-${envelope.id}`}>
+                        Assigned amount for {envelope.name}
+                      </label>
+                      <Input
+                        id={`assigned-${envelope.id}`}
+                        value={drafts[envelope.id] ?? ''}
+                        onChange={(e) =>
+                          setDrafts((prev) => ({ ...prev, [envelope.id]: e.target.value }))
+                        }
+                        onBlur={() => handleAssign(envelope.id)}
+                        className="w-24"
+                      />
+                    </td>
+                    <td className="py-3 text-right align-top font-medium text-paper-900">
+                      <Amount value={envelope.available} signed />
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
