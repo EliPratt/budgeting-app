@@ -34,8 +34,8 @@ describe('GoalsPanel', () => {
 
     renderWithClient(<GoalsPanel />)
 
-    expect(await screen.findByText(/250\.00 of 1000\.00 \(25\.00%\)/)).toBeInTheDocument()
-    expect(screen.getByText(/suggested: 125\.00\/mo for 6 more months/i)).toBeInTheDocument()
+    expect(await screen.findByText(/\$250\.00 of \$1,000\.00 \(25\.00%\)/)).toBeInTheDocument()
+    expect(screen.getByText(/suggested: \$125\.00\/mo for 6 more months/i)).toBeInTheDocument()
   })
 
   it('shows an achieved message instead of a suggestion once the goal is met', async () => {
@@ -69,7 +69,7 @@ describe('GoalsPanel', () => {
         targetDate: '2026-12-01',
       }),
     )
-    expect(await screen.findByText(/250\.00 of 1000\.00/)).toBeInTheDocument()
+    expect(await screen.findByText(/\$250\.00 of \$1,000\.00/)).toBeInTheDocument()
   })
 
   it('removes a goal', async () => {
@@ -78,11 +78,11 @@ describe('GoalsPanel', () => {
     vi.spyOn(goalsApi, 'deleteGoal').mockResolvedValue(undefined)
 
     renderWithClient(<GoalsPanel />)
-    await screen.findByText(/250\.00 of 1000\.00/)
+    await screen.findByText(/\$250\.00 of \$1,000\.00/)
 
     fireEvent.click(screen.getByRole('button', { name: /remove/i }))
 
     await waitFor(() => expect(goalsApi.deleteGoal).toHaveBeenCalledWith(1))
-    expect(screen.queryByText(/250\.00 of 1000\.00/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\$250\.00 of \$1,000\.00/)).not.toBeInTheDocument()
   })
 })

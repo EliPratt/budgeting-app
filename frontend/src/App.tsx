@@ -9,15 +9,15 @@ function AppShell() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-slate-400">Loading…</p>
+      <div className="flex min-h-screen items-center justify-center bg-paper-100">
+        <p className="text-paper-400">Loading…</p>
       </div>
     )
   }
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="flex min-h-screen items-center justify-center bg-teal-900 px-4">
         <LoginForm onSubmit={login} />
       </div>
     )

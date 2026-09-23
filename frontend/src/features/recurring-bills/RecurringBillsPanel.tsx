@@ -12,6 +12,7 @@ import {
   type BillFrequency,
   type RecurringBill,
 } from './api'
+import { Amount, Button, Card, Field, Input, Select } from '../../lib/ui'
 
 const FREQUENCIES: BillFrequency[] = ['weekly', 'biweekly', 'monthly', 'yearly']
 
@@ -95,147 +96,113 @@ export function RecurringBillsPanel() {
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">Recurring bills</h2>
+    <Card title="Recurring bills" className="h-full">
+      <div className="space-y-4">
+        {dueBills.length > 0 && (
+          <div className="space-y-2 rounded-md bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-800">Due now</p>
+            <ul className="space-y-2">
+              {dueBills.map((bill) => (
+                <li key={bill.id} className="flex items-center justify-between text-sm">
+                  <span className="text-amber-900">
+                    {bill.name} — <Amount value={bill.amount} /> (due {bill.next_due_date})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleConfirm(bill.id)}
+                    disabled={confirmingId === bill.id}
+                    className="rounded-md bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    Confirm
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      {dueBills.length > 0 && (
-        <div className="space-y-2 rounded-md bg-amber-50 p-3">
-          <p className="text-sm font-medium text-amber-800">Due now</p>
-          <ul className="space-y-2">
-            {dueBills.map((bill) => (
-              <li key={bill.id} className="flex items-center justify-between text-sm">
-                <span className="text-amber-900">
-                  {bill.name} — {bill.amount} (due {bill.next_due_date})
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleConfirm(bill.id)}
-                  disabled={confirmingId === bill.id}
-                  className="rounded-md bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
-                >
-                  Confirm
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        <ul className="divide-y divide-paper-100">
+          {bills.map((bill) => (
+            <li key={bill.id} className="flex items-center justify-between py-2 text-sm">
+              <span className="text-paper-700">{bill.name}</span>
+              <span className="text-paper-400">Next: {bill.next_due_date}</span>
+              <span className="font-medium text-paper-900">
+                <Amount value={bill.amount} signed />
+              </span>
+            </li>
+          ))}
+        </ul>
 
-      <ul className="divide-y divide-slate-100">
-        {bills.map((bill) => (
-          <li key={bill.id} className="flex items-center justify-between py-2 text-sm">
-            <span className="text-slate-700">{bill.name}</span>
-            <span className="text-slate-400">Next: {bill.next_due_date}</span>
-            <span className="font-medium text-slate-900">{bill.amount}</span>
-          </li>
-        ))}
-      </ul>
+        <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
+          <Field label="Name" htmlFor={nameId}>
+            <Input id={nameId} required value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
 
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <label htmlFor={nameId} className="block text-xs font-medium text-slate-500">
-            Name
-          </label>
-          <input
-            id={nameId}
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-          />
-        </div>
+          <Field label="Account" htmlFor={accountFieldId}>
+            <Select
+              id={accountFieldId}
+              value={accountId}
+              onChange={(e) => setAccountIdChoice(Number(e.target.value))}
+            >
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
-        <div className="space-y-1">
-          <label htmlFor={accountFieldId} className="block text-xs font-medium text-slate-500">
-            Account
-          </label>
-          <select
-            id={accountFieldId}
-            value={accountId}
-            onChange={(e) => setAccountIdChoice(Number(e.target.value))}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-          >
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          <Field label="Envelope" htmlFor={envelopeFieldId}>
+            <Select
+              id={envelopeFieldId}
+              value={envelopeId}
+              onChange={(e) => setEnvelopeIdChoice(Number(e.target.value))}
+            >
+              {envelopes.map((envelope) => (
+                <option key={envelope.id} value={envelope.id}>
+                  {envelope.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
-        <div className="space-y-1">
-          <label htmlFor={envelopeFieldId} className="block text-xs font-medium text-slate-500">
-            Envelope
-          </label>
-          <select
-            id={envelopeFieldId}
-            value={envelopeId}
-            onChange={(e) => setEnvelopeIdChoice(Number(e.target.value))}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-          >
-            {envelopes.map((envelope) => (
-              <option key={envelope.id} value={envelope.id}>
-                {envelope.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          <Field label="Amount" htmlFor={amountId}>
+            <Input
+              id={amountId}
+              required
+              inputMode="decimal"
+              placeholder="-1200.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-28"
+            />
+          </Field>
 
-        <div className="space-y-1">
-          <label htmlFor={amountId} className="block text-xs font-medium text-slate-500">
-            Amount
-          </label>
-          <input
-            id={amountId}
-            required
-            inputMode="decimal"
-            placeholder="-1200.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
-          />
-        </div>
+          <Field label="Frequency" htmlFor={frequencyId}>
+            <Select id={frequencyId} value={frequency} onChange={(e) => setFrequency(e.target.value as BillFrequency)}>
+              {FREQUENCIES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
-        <div className="space-y-1">
-          <label htmlFor={frequencyId} className="block text-xs font-medium text-slate-500">
-            Frequency
-          </label>
-          <select
-            id={frequencyId}
-            value={frequency}
-            onChange={(e) => setFrequency(e.target.value as BillFrequency)}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-          >
-            {FREQUENCIES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
+          <Field label="Next due date" htmlFor={dueDateId}>
+            <Input
+              id={dueDateId}
+              type="date"
+              required
+              value={nextDueDate}
+              onChange={(e) => setNextDueDate(e.target.value)}
+            />
+          </Field>
 
-        <div className="space-y-1">
-          <label htmlFor={dueDateId} className="block text-xs font-medium text-slate-500">
-            Next due date
-          </label>
-          <input
-            id={dueDateId}
-            type="date"
-            required
-            value={nextDueDate}
-            onChange={(e) => setNextDueDate(e.target.value)}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={createMutation.isPending}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-        >
-          Add bill
-        </button>
-      </form>
-    </section>
+          <Button type="submit" disabled={createMutation.isPending}>
+            Add bill
+          </Button>
+        </form>
+      </div>
+    </Card>
   )
 }

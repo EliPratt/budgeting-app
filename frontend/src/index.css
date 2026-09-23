@@ -1,1 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Public+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-display: 'Lora', ui-serif, Georgia, serif;
+  --font-sans: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* Neutrals: warm, slightly green-grey paper tones rather than stock slate/grey. */
+  --color-paper-50: #f7f7f3;
+  --color-paper-100: #f0f1ea;
+  --color-paper-200: #e2e4d9;
+  --color-paper-300: #cbcfbf;
+  --color-paper-400: #a4aa93;
+  --color-paper-500: #7c8370;
+  --color-paper-600: #5e6553;
+  --color-paper-700: #474d3f;
+  --color-paper-800: #30352a;
+  --color-paper-900: #1e2118;
+
+  /* Primary: deep teal, used for actions, active state, and "on track" emphasis. */
+  --color-teal-50: #eef6f4;
+  --color-teal-100: #d3e9e3;
+  --color-teal-200: #a4d3c7;
+  --color-teal-300: #6cb5a5;
+  --color-teal-400: #3d9482;
+  --color-teal-500: #227566;
+  --color-teal-600: #175d51;
+  --color-teal-700: #124a41;
+  --color-teal-800: #0e3a33;
+  --color-teal-900: #0a2b26;
+
+  /* Semantic money states — muted, not saturated; used on figures only. */
+  --color-money-positive: #2f7d54;
+  --color-money-negative: #a8452c;
+  --color-money-neutral: #7c8370;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-paper-100);
+  color: var(--color-paper-900);
+  font-feature-settings: 'tnum' 1;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

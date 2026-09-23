@@ -431,3 +431,52 @@ refetch yourself" signal), and scales badly as more cross-panel
 dependencies get added. React Query is the more durable choice for a
 project explicitly meant to demonstrate solid full-stack engineering
 practice, at the cost of the dependency and the learning curve above.
+
+## A shared design-token layer and UI primitives instead of per-panel Tailwind utility strings
+
+**Decision:** Introduced a single `@theme` block in `index.css` (Tailwind
+v4's CSS-native config) defining a named color palette (`paper-*` neutrals,
+`teal-*` primary, semantic `money-positive`/`money-negative`/`money-neutral`)
+and two font roles, plus a small `src/lib/ui/` module (`Card`, `Button`,
+`Field`/`Input`/`Select`, `Amount`) that every feature panel now imports
+instead of hand-rolling `rounded-xl border border-slate-200 bg-white p-6
+shadow-sm`-style strings. Money figures render through one `Amount`
+component (or the `formatAmount` function where a single text node is
+required for test matching) backed by `Intl.NumberFormat`, replacing ad
+hoc `${value}` interpolation that was inconsistent across panels (some
+had a literal `$`, most didn't; none used thousands separators).
+
+**Why:** The app was functionally complete but visually was un-styled
+Tailwind defaults — every one of the ten feature panels independently
+wrote its own card/button/input classes, so there was no single place to
+change "what a card looks like" and no guarantee two panels used the same
+gray. Centralizing tokens and primitives means a palette or spacing change
+is a one-file edit, and new panels get the system for free by importing
+`Card`/`Button`/etc. rather than copying a class string. Tailwind v4's
+CSS-first `@theme` (no `tailwind.config.js` in this project) was used
+rather than reaching for a component library, since the app's surface
+area (accounts, envelopes, transactions, bills, goals, reports) is small
+enough that five primitives cover it without pulling in a dependency.
+
+**Trade-off:** Every panel file changed in this pass (13 files), which is
+a large diff for a change with no behavior impact — mitigated by having
+no visual-regression tooling in CI, so the review burden is manual
+screenshot comparison rather than an automated diff. `Amount`'s formatted
+output (`$1,000.00` vs. the old raw `1000.00` or inconsistent `$1000.00`)
+is an observable text change, which broke five assertions across three
+test files (`App`, `MonthOverviewPanel`, `GoalsPanel`) that matched on
+literal unformatted numbers; those were updated to match the new,
+intentional format rather than the formatting being reverted to fit the
+tests.
+
+**Alternatives considered:** (1) A component library (shadcn/ui, Radix +
+Tailwind) — rejected as overkill for five primitive types and adds a
+generated-code footprint to review. (2) Keeping Tailwind's default slate
+palette and only changing spacing/shadows — rejected because the
+"generic AI/Tailwind-default" look the redesign was meant to fix comes
+from the color palette at least as much as from spacing, and a named
+`teal`/`paper` palette makes intent (which color means what) explicit in
+a way `slate-700` vs `slate-900` does not. (3) CSS Modules or
+styled-components for the primitives instead of Tailwind classes —
+rejected to stay consistent with the rest of the codebase, which is
+Tailwind-only.

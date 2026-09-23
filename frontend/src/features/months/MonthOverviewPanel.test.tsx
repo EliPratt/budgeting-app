@@ -34,7 +34,7 @@ describe('MonthOverviewPanel', () => {
     renderWithClient(<MonthOverviewPanel />)
 
     expect(await screen.findByText('Groceries')).toBeInTheDocument()
-    expect(screen.getByText('175.00')).toBeInTheDocument()
+    expect(screen.getByText('$175.00')).toBeInTheDocument()
     expect(screen.getByText(/not fully assigned/i)).toBeInTheDocument()
   })
 
@@ -78,7 +78,7 @@ describe('MonthOverviewPanel', () => {
     fireEvent.change(input, { target: { value: '300.00' } })
     fireEvent.blur(input)
 
-    expect(await screen.findByText('275.00')).toBeInTheDocument()
+    expect(await screen.findByText('$275.00')).toBeInTheDocument()
     expect(api.assignEnvelopeMonth).toHaveBeenCalledWith(2026, 1, 1, '300.00')
   })
 

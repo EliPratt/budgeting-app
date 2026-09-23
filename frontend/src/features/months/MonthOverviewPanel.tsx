@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../../lib/queryKeys'
 import { assignEnvelopeMonth, getMonthOverview, type MonthOverview, type MonthSummary } from './api'
+import { Amount, Card, Input } from '../../lib/ui'
 
 const MONTH_NAMES = [
   'January',
@@ -81,37 +82,38 @@ export function MonthOverviewPanel({ initialYear, initialMonth }: MonthOverviewP
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">Budget</h2>
+    <Card
+      title="Budget"
+      emphasis
+      action={
         <div className="flex items-center gap-2 text-sm">
           <button
             aria-label="Previous month"
             onClick={() => goToMonth(-1)}
-            className="rounded-md border border-slate-300 px-2 py-1 hover:bg-slate-50"
+            className="rounded-md border border-paper-300 px-2 py-1 text-paper-600 hover:bg-paper-50"
           >
             ←
           </button>
-          <span className="w-32 text-center font-medium text-slate-700">
+          <span className="w-32 text-center font-medium text-paper-700">
             {MONTH_NAMES[month - 1]} {year}
           </span>
           <button
             aria-label="Next month"
             onClick={() => goToMonth(1)}
-            className="rounded-md border border-slate-300 px-2 py-1 hover:bg-slate-50"
+            className="rounded-md border border-paper-300 px-2 py-1 text-paper-600 hover:bg-paper-50"
           >
             Next →
           </button>
         </div>
-      </div>
-
+      }
+    >
       {overview && (
-        <>
+        <div className="space-y-4">
           <div
             className={`rounded-md px-3 py-2 text-sm ${
               overview.summary.balanced
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-amber-50 text-amber-700'
+                ? 'bg-teal-50 text-teal-700'
+                : 'bg-amber-50 text-amber-800'
             }`}
           >
             {summaryMessage(overview.summary)}
@@ -119,39 +121,43 @@ export function MonthOverviewPanel({ initialYear, initialMonth }: MonthOverviewP
 
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-400">
+              <tr className="text-left text-xs text-paper-400">
                 <th className="pb-2 font-medium">Envelope</th>
                 <th className="pb-2 font-medium">Assigned</th>
-                <th className="pb-2 font-medium">Activity</th>
-                <th className="pb-2 font-medium">Available</th>
+                <th className="pb-2 text-right font-medium">Activity</th>
+                <th className="pb-2 text-right font-medium">Available</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-paper-100">
               {overview.envelopes.map((envelope) => (
                 <tr key={envelope.id}>
-                  <td className="py-2 text-slate-700">{envelope.name}</td>
+                  <td className="py-2 text-paper-700">{envelope.name}</td>
                   <td className="py-2">
                     <label className="sr-only" htmlFor={`assigned-${envelope.id}`}>
                       Assigned amount for {envelope.name}
                     </label>
-                    <input
+                    <Input
                       id={`assigned-${envelope.id}`}
                       value={drafts[envelope.id] ?? ''}
                       onChange={(e) =>
                         setDrafts((prev) => ({ ...prev, [envelope.id]: e.target.value }))
                       }
                       onBlur={() => handleAssign(envelope.id)}
-                      className="w-24 rounded-md border border-slate-300 px-2 py-1"
+                      className="w-24"
                     />
                   </td>
-                  <td className="py-2 text-slate-500">{envelope.activity}</td>
-                  <td className="py-2 font-medium text-slate-900">{envelope.available}</td>
+                  <td className="py-2 text-right text-paper-500">
+                    <Amount value={envelope.activity} />
+                  </td>
+                  <td className="py-2 text-right font-medium text-paper-900">
+                    <Amount value={envelope.available} signed />
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </>
+        </div>
       )}
-    </section>
+    </Card>
   )
 }
