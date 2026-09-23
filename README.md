@@ -136,13 +136,34 @@ hardcoding placeholder values into version control:
   session; setting them ad hoc when you run the command works just as
   well.
 
-Once deployed, open a shell for the service in the Render dashboard and
-create the owner login:
+Once deployed, create the owner login by running `scripts.seed_owner`.
+On a paid Render plan you can do this from the dashboard's **Shell**
+tab for the service:
 
 ```bash
 OWNER_EMAIL=you@example.com OWNER_PASSWORD=choose-a-strong-password \
   python -m scripts.seed_owner
 ```
+
+The **free plan has no Shell tab**, so run the same command from your
+own machine instead, pointed at the database's **External Database
+URL** (Render dashboard → your Postgres instance → **Connect** → copy
+the external, not internal, URL):
+
+```bash
+cd backend && source .venv/bin/activate
+DATABASE_URL="<external database url>" \
+  OWNER_EMAIL=you@example.com OWNER_PASSWORD=choose-a-strong-password \
+  python -m scripts.seed_owner
+```
+
+`config.py`'s `DATABASE_URL` normalization means the raw URL Render
+gives you can be pasted in as-is.
+
+**Resetting the password later:** re-run the exact same command with a
+new `OWNER_PASSWORD` — `seed_owner` updates the existing user's password
+in place if that email already exists, rather than requiring you to
+delete anything first.
 
 ### 2. Frontend — Vercel
 
